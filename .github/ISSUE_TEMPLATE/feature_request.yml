@@ -1,0 +1,22 @@
+name: Feature request
+description: A routine Kata should be able to learn, or a way to manage katas better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you or your agent doing repeatedly that Kata does not handle today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety considerations
+      description: Could this change what runs without approval, retries side effects, or expose data?
