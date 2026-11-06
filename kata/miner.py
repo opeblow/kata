@@ -212,7 +212,7 @@ def measure_baseline(occ: list[list[ToolEvent]], api_lookup: Callable | None) ->
     for o in occ:
         spans.append(max(0.0, o[-1].ended_at - o[0].started_at) * 1000)
         if api_lookup:
-            calls = api_lookup(o[0].turn_id, o[0].ended_at, o[-1].started_at)
+            calls = api_lookup(o[0].turn_id, o[0].seq, o[-1].seq)
             llm_calls.append(len(calls))
             tokens.append(sum(c[2] for c in calls))
             llm_time.append(sum(c[1] for c in calls) * 1000)
