@@ -20,7 +20,7 @@ Routine observed in 4 separate conversations: `search_files`, then `read_file`, 
 ### Why Kata proposed this
 - Seen in 4 separate conversations (4 matching runs)
 - Held-out fit 100%, confidence 0.87
-- By hand it took 3 tool calls, 2.0 model round-trips, ~4190 tokens, 192 ms
+- By hand it took 3 tool calls, 2.0 model round-trips, ~4190 tokens, 240 ms
 
 ### Steps (executed in this order, no model calls in between)
 1. `search_files`(path="src", pattern="TODO({pattern})")  [read: `search_files` only reads]
@@ -88,7 +88,7 @@ Approve with `/kata approve 1` (optionally `as <name>`), or `/kata reject 1`.
 ------------------------------------------------------------------------
 5. A new conversation does the same task with the compiled tool
 ------------------------------------------------------------------------
-   ok=True  steps=search_files:ok > read_file:ok > terminal:ok  executed in 120 ms
+   ok=True  steps=search_files:ok > read_file:ok > terminal:ok  executed in 206 ms
    result: 6 src/billing_erin.py
 ------------------------------------------------------------------------
 6. Measured cost, one triage
