@@ -53,6 +53,25 @@ def signature_of(events: list[ToolEvent]) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
+SETTLE_S = 600.0
+
+
+def settled(events: list[ToolEvent], ended_sessions: set[str], now: float, settle_s: float = SETTLE_S
+            ) -> list[ToolEvent]:
+    """Drop work that may still be in progress, so a half-finished routine is never mined.
+
+    A turn is settled when its session has ended, when a later turn in the same session
+    exists, or when it has been idle for ``settle_s`` seconds."""
+    last_turn: dict[str, tuple[int, str, float]] = {}
+    for e in events:
+        cur = last_turn.get(e.session_id)
+        if cur is None or e.id > cur[0]:
+            last_turn[e.session_id] = (e.id, e.turn_id, e.ended_at)
+    open_turns = {(sid, turn) for sid, (_, turn, at) in last_turn.items()
+                  if sid not in ended_sessions and now - at < settle_s}
+    return [e for e in events if (e.session_id, e.turn_id) not in open_turns]
+
+
 def segment(events: list[ToolEvent], max_gap_s: float = MAX_GAP_S) -> list[list[ToolEvent]]:
     """Split history into runs of successful, compilable calls within one turn."""
     by_turn: dict[tuple[str, str], list[ToolEvent]] = defaultdict(list)
