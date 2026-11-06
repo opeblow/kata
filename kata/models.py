@@ -163,6 +163,7 @@ class ToolEvent:
     status: str
     duration_ms: int
     ended_at: float
+    seq: int = 0  # position in the shared order of tool calls and model requests
 
     @property
     def started_at(self) -> float:
