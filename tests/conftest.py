@@ -49,3 +49,4 @@ def triage_by_hand(host: FakeHermes, user: str, conversation_id: str | None = No
     host.call(turn, "terminal", {"command": f"wc -l {path}"})
     host.model_request(turn, tokens=900, latency_s=0.0)
     host.end_session(turn)
+    host.runtime.wait_idle()
