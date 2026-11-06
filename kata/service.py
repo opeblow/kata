@@ -14,7 +14,16 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from .miner import MinerConfig, _one_per_conversation, _support, compile_candidate, fits, mine, occurrences_for
+from .miner import (
+    MinerConfig,
+    _one_per_conversation,
+    _support,
+    compile_candidate,
+    fits,
+    mine,
+    occurrences_for,
+    settled,
+)
 from .models import Effect, KataSpec, Status, ToolEvent
 from .store import Store
 from .validator import validate
@@ -39,6 +48,11 @@ class MineReport:
     def to_json(self) -> dict:
         return {"proposed": self.proposed, "updated": self.updated, "rejected": self.rejected,
                 "drift": self.drift, "pending": self.pending, "events": self.events}
+
+
+def _contains(longer: tuple, shorter: tuple) -> bool:
+    n = len(shorter)
+    return any(longer[i:i + n] == shorter for i in range(len(longer) - n + 1))
 
 
 def _shape(spec: KataSpec) -> str:
@@ -104,12 +118,18 @@ class KataService:
         report = MineReport()
         since = time.time() - self.retention_days * 86400
         self.store.prune(since)
-        events = self.store.events(since, limit=self.max_events)
+        events = settled(self.store.events(since, limit=self.max_events), self.store.ended_sessions(), time.time())
         report.events = len(events)
         specs, rejections = mine(events, self.cfg, api_lookup=self.store.api_calls_between,
                                  fingerprint=self.fingerprint)
         report.rejected = [{"tools": r.tools, "reason": r.reason} for r in rejections]
+        rejected_seqs = [tuple(s.tool for s in self.spec(k["id"])[0].steps)
+                         for k in self.store.katas(Status.REJECTED.value)]
         for spec in specs:
+            seq = tuple(s.tool for s in spec.steps)
+            if any(_contains(r, seq) for r in rejected_seqs) and not self.store.kata_by_signature(spec.signature):
+                report.rejected.append({"tools": list(seq), "reason": "part of a routine you rejected"})
+                continue
             existing = self.store.kata_by_signature(spec.signature)
             if existing is None:
                 spec.name = self._unique_name(spec.name)
@@ -120,7 +140,12 @@ class KataService:
                     continue
                 self.store.add_candidate(spec, validation.to_json())
                 report.proposed.append(spec.name)
-            elif existing["status"] in (Status.CANDIDATE.value, Status.STALE.value):
+            elif existing["status"] == Status.STALE.value:
+                # A stale kata is revised only from what the agent did after the approved version.
+                report.pending.append(existing["name"])
+                if self._revise_from_recent(existing, events):
+                    report.updated.append(existing["name"])
+            elif existing["status"] == Status.CANDIDATE.value:
                 report.pending.append(existing["name"])
                 latest, _, _ = self.spec(existing["id"])
                 if _shape(latest) != _shape(spec):
@@ -139,13 +164,37 @@ class KataService:
         occ = occurrences_for(events, spec.signature, self.cfg.max_steps, self.cfg.max_gap_s)
         return [o for o in occ if tuple(e.id for e in o) in wanted]
 
+    def _approved_at(self, k: dict) -> float:
+        v = self.store.version(k["id"], k["active_version"]) if k["active_version"] else None
+        return (v or {}).get("approved_at") or k["created_at"]
+
+    def _recent(self, k: dict, spec: KataSpec, events: list[ToolEvent]) -> list[list[ToolEvent]]:
+        since = self._approved_at(k)
+        occ = occurrences_for(events, spec.signature, self.cfg.max_steps, self.cfg.max_gap_s)
+        return [o for o in occ if o[0].ended_at > since]
+
+    def _revise_from_recent(self, k: dict, events: list[ToolEvent]) -> bool:
+        """Prepare a new version from manual runs made after the approved one. Returns True if added."""
+        spec, _, _ = self.spec(k["id"], k["active_version"] or None)
+        fresh = _one_per_conversation(self._recent(k, spec, events))
+        if _support(fresh) < 2:
+            return False
+        new, _ = compile_candidate(fresh, support=_support(fresh), api_lookup=self.store.api_calls_between,
+                                   fingerprint=self.fingerprint)
+        if new is None or _shape(new) == _shape(self.spec(k["id"])[0]):
+            return False
+        new.name = k["name"]
+        rep = validate(new, fresh, fingerprint=self.fingerprint)
+        version = self.store.add_version(k["id"], new, rep.to_json())
+        self.store.audit(k["id"], "revised", "kata", f"v{version} prepared from {len(fresh)} recent manual runs")
+        return True
+
     def detect_drift(self, events: list[ToolEvent]) -> list[str]:
         """Flag active katas whose routine the agent now performs differently by hand."""
         flagged = []
         for k in self.store.katas(Status.ACTIVE.value):
             spec, version, _ = self.spec(k["id"], k["active_version"])
-            occ = occurrences_for(events, spec.signature, self.cfg.max_steps, self.cfg.max_gap_s)
-            recent = [o for o in occ if o[0].ended_at > (k["updated_at"] or 0)]
+            recent = self._recent(k, spec, events)
             if len(recent) < 2:
                 continue
             types = {p.name: p.type for p in spec.params}
@@ -153,14 +202,7 @@ class KataService:
             if len(misfits) >= 2 and len(misfits) * 2 >= len(recent):
                 self.store.set_status(k["id"], Status.STALE, actor="kata",
                                       reason=f"{len(misfits)} of {len(recent)} recent manual runs no longer fit v{version}")
-                fresh = _one_per_conversation(recent)
-                if _support(fresh) >= 2:
-                    new, _ = compile_candidate(fresh, support=_support(fresh), api_lookup=self.store.api_calls_between,
-                                               fingerprint=self.fingerprint)
-                    if new is not None:
-                        new.name = k["name"]
-                        rep = validate(new, fresh, fingerprint=self.fingerprint)
-                        self.store.add_version(k["id"], new, rep.to_json())
+                self._revise_from_recent(self.store.kata(k["id"]), events)
                 flagged.append(k["name"])
         return flagged
 
