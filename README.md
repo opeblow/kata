@@ -14,7 +14,7 @@ Nothing activates without you.
 <br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/opeblow/kata/ci.yml?branch=main&label=CI&style=flat-square&labelColor=1a1814)](https://github.com/opeblow/kata/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-38%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
+[![Tests](https://img.shields.io/badge/tests-42%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
 [![Coverage](https://img.shields.io/badge/coverage-88%25-3f7a52?style=flat-square&labelColor=1a1814)](.github/workflows/ci.yml)
 [![Security scan](https://img.shields.io/badge/hermes%20security%20scan-0%20findings-3f7a52?style=flat-square&labelColor=1a1814)](SECURITY.md)
 [![Runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-3f7a52?style=flat-square&labelColor=1a1814)](pyproject.toml)
@@ -262,7 +262,7 @@ Read the full threat model in [SECURITY.md](SECURITY.md) and data handling in [P
 | **Passes catalog admission** | [`tests/test_admission.py`](tests/test_admission.py) mirrors the catalog rules: manifest fields, declared versus registered tools and hooks, valid hook names, `**kwargs` on every callback, public imports only, no core rebinds, no compiled artifacts. |
 | **Clean security scan** | Hermes's install-time scanner patterns report **zero** findings on the plugin directory. |
 | **Fast at scale** | Mining 19,256 events takes about 3.5 seconds on a laptop and finds only the real routine. History is bounded by retention and a 50,000-event window. |
-| **Multi-process safe** | WAL-mode SQLite with a busy timeout. Dashboard approvals reach the agent process through a generation counter checked once per turn. |
+| **Multi-process safe** | WAL-mode SQLite with a busy timeout. Tool calls and model requests share one sequence, so savings are attributed correctly even where the system clock is coarse. Dashboard approvals reach the agent process through a generation counter checked once per turn. |
 | **Upgradable** | Versioned database schema with forward-only migrations. A newer database is refused rather than corrupted. |
 | **Retention-aware** | Old history is pruned, but events that back an existing kata's evidence are kept so it can always be re-validated. |
 | **Cross-platform** | CI runs on Linux, macOS and Windows with Python 3.11, 3.12 and 3.13, plus the full end-to-end run. |
@@ -417,7 +417,6 @@ kata/
 │   ├── workflows/
 │   │   ├── ci.yml                    lint, manifests, tests on 3 OSes x 3 Pythons, coverage floor, end-to-end run
 │   │   └── pages.yml                 publishes site/ to GitHub Pages
-│   ├── dependabot.yml
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── kata/                             the Hermes plugin (catalog subdir)
 │   ├── dashboard/
@@ -462,6 +461,7 @@ kata/
 │   ├── test_dashboard_api.py         cross-process approval through the dashboard
 │   ├── test_end_to_end.py            full lifecycle, safety and drift
 │   ├── test_scale.py                 19,256-event benchmark, no false positives
+│   ├── test_store.py                 schema upgrades and request attribution by order
 │   └── test_units.py                 templating, mining, effects, executor, validator
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
@@ -476,7 +476,7 @@ kata/
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pytest --cov=kata          # 38 tests, 88% coverage
+python -m pytest --cov=kata          # 42 tests, 88% coverage
 ruff check .
 python scripts/demo.py --db /tmp/kata-demo.db
 KATA_DB_PATH=/tmp/kata-demo.db python devtools/preview_server.py   # dashboard at http://127.0.0.1:8765
