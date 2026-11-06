@@ -52,6 +52,8 @@ class FakeHermes:
     model_latency_s: float = 0.0
 
     def __post_init__(self) -> None:
+        # One canonical spelling: macOS /var vs /private/var, Windows 8.3 short names.
+        self.sandbox = Path(self.sandbox).resolve()
         for name, fn, schema in builtin_tools(self.sandbox):
             self.tools[name] = {"handler": fn, "schema": schema, "toolset": "builtin"}
 
