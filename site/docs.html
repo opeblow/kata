@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kata Documentation</title>
+<meta name="description" content="Install, configure and operate Kata, the Hermes Agent plugin that compiles repeated routines into approved deterministic tools.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,500;1,6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="Kata home">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="10" fill="#c8361d"/><path d="M17 42 L28 24 L37 38 L47 20" fill="none" stroke="#f4f0e6" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="1 7"/><path d="M17 46 H47" stroke="#f4f0e6" stroke-width="4" stroke-linecap="round"/><circle cx="17" cy="42" r="3.6" fill="#f4f0e6"/><circle cx="28" cy="24" r="3.6" fill="#f4f0e6"/><circle cx="37" cy="38" r="3.6" fill="#f4f0e6"/><circle cx="47" cy="20" r="3.6" fill="#f4f0e6"/></svg>
+      Kata
+    </a>
+    <nav aria-label="Primary">
+      <ul>
+        <li class="hide-sm"><a href="index.html#how">How it works</a></li>
+        <li class="hide-sm"><a href="index.html#safety">Safety</a></li>
+        <li><a href="docs.html" aria-current="page">Docs</a></li>
+        <li><a href="https://github.com/opeblow/kata">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap doc">
+  <aside class="toc" aria-label="On this page">
+    <ol>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#use">Daily use</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#discovery">Pattern discovery</a></li>
+      <li><a href="#validation">Validation</a></li>
+      <li><a href="#execution">Execution</a></li>
+      <li><a href="#lifecycle">Lifecycle</a></li>
+      <li><a href="#config">Configuration</a></li>
+      <li><a href="#reference">Reference</a></li>
+      <li><a href="#limits">Limitations</a></li>
+    </ol>
+  </aside>
+
+  <article class="prose">
+    <p class="eyebrow">Documentation</p>
+    <h1>Kata</h1>
+    <p>Kata is a Hermes Agent plugin. It records the tool calls your agent makes, detects multi-step routines
+      repeated across conversations, and proposes each as a reusable tool. A proposal becomes a tool only after you
+      approve it. The compiled tool replays the routine deterministically, with no model calls between steps.</p>
+
+    <h2 id="install">Install</h2>
+    <p>Kata requires Hermes Agent 0.22.0 or newer and has no third-party Python dependencies.</p>
+<pre class="block">hermes plugins install kata          <span class="c"># from the catalog, pinned to a reviewed commit</span>
+hermes plugins enable kata
+hermes plugins validate ~/.hermes/plugins/kata   <span class="c"># optional: same checks as catalog CI</span></pre>
+    <p>Start a new session. Kata begins recording immediately and stays silent until it has something to show you.
+      Open the <strong>Kata</strong> tab in <code>hermes dashboard</code> to review proposals visually.</p>
+    <p>To try it without a model or API key, clone the repository and run <code>python scripts/demo.py</code>. It drives
+      the real plugin through a stand-in host that fires the same hooks Hermes does.</p>
+
+    <h2 id="use">Daily use</h2>
+    <p>Work normally. When a routine has appeared in three separate conversations (configurable), Kata proposes it at the
+      end of the session.</p>
+<pre class="block">/kata                         <span class="c"># list proposals and active katas</span>
+/kata review 2                <span class="c"># steps, data flow, permissions, schemas, side effects, validation</span>
+/kata approve 2 as deploy_preview
+/kata runs kata_deploy_preview  <span class="c"># traces of recent executions</span>
+/kata disable kata_deploy_preview
+/kata rollback kata_deploy_preview 1</pre>
+    <p>Once approved, the agent sees a new tool, for example <code>kata_deploy_preview(branch)</code>, and calls it once
+      instead of repeating the steps. The same commands are available as <code>hermes kata ...</code> in a shell.</p>
+
+    <h2 id="architecture">Architecture</h2>
+    <div class="diagram" role="img" aria-label="Data flows from Hermes hooks into the recorder and SQLite store, through the miner and validator to a candidate, through human approval to the runtime, which registers the tool and executes it through Hermes dispatch.">
+      <svg viewBox="0 0 720 300">
+        <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <rect class="box" x="10" y="20" width="150" height="56" rx="6"/><text x="85" y="44" text-anchor="middle">Hermes hooks</text><text class="sub" x="85" y="62" text-anchor="middle">post_tool_call, post_api_request</text>
+        <rect class="box" x="200" y="20" width="130" height="56" rx="6"/><text x="265" y="44" text-anchor="middle">Recorder</text><text class="sub" x="265" y="62" text-anchor="middle">redacts secrets</text>
+        <rect class="box" x="370" y="20" width="130" height="56" rx="6"/><text x="435" y="44" text-anchor="middle">SQLite store</text><text class="sub" x="435" y="62" text-anchor="middle">plugin-data/kata</text>
+        <rect class="box" x="540" y="20" width="170" height="56" rx="6"/><text x="625" y="44" text-anchor="middle">Miner</text><text class="sub" x="625" y="62" text-anchor="middle">segment, count, generalise</text>
+        <rect class="box" x="540" y="122" width="170" height="56" rx="6"/><text x="625" y="146" text-anchor="middle">Validator</text><text class="sub" x="625" y="164" text-anchor="middle">12 offline checks</text>
+        <rect class="box-seal" x="330" y="122" width="170" height="56" rx="6"/><text x="415" y="146" text-anchor="middle">You approve</text><text class="sub" x="415" y="164" text-anchor="middle">/kata or dashboard</text>
+        <rect class="box" x="120" y="122" width="170" height="56" rx="6"/><text x="205" y="146" text-anchor="middle">Runtime</text><text class="sub" x="205" y="164" text-anchor="middle">register_tool, drift checks</text>
+        <rect class="box" x="120" y="226" width="170" height="56" rx="6"/><text x="205" y="250" text-anchor="middle">Executor</text><text class="sub" x="205" y="268" text-anchor="middle">ctx.dispatch_tool per step</text>
+        <rect class="box" x="400" y="226" width="200" height="56" rx="6"/><text x="500" y="250" text-anchor="middle">Agent calls kata_*</text><text class="sub" x="500" y="268" text-anchor="middle">pre_tool_call asks if external</text>
+        <path class="ln" d="M160 48 H196"/><path class="ln" d="M330 48 H366"/><path class="ln" d="M500 48 H536"/>
+        <path class="ln" d="M625 76 V118"/><path class="ln" d="M540 150 H504"/><path class="ln" d="M330 150 H294"/>
+        <path class="ln" d="M205 178 V222"/><path class="ln" d="M400 254 H294"/>
+      </svg>
+    </div>
+    <table>
+      <thead><tr><th>Module</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td><code>runtime.py</code></td><td>Hook handlers, tool registration and unregistration, the compiled-tool handler, per-call approval.</td></tr>
+        <tr><td><code>miner.py</code></td><td>Segmentation, windowed counting, maximality, leave-one-out scoring, baseline measurement.</td></tr>
+        <tr><td><code>templating.py</code></td><td>Argument inference (constants, parameters, data-flow references), rendering and matching.</td></tr>
+        <tr><td><code>validator.py</code></td><td>Offline pre-activation checks with a replaying stub dispatcher.</td></tr>
+        <tr><td><code>executor.py</code></td><td>Deterministic step execution with timeouts, bounded retries and traces.</td></tr>
+        <tr><td><code>service.py</code></td><td>Lifecycle and state transitions shared by the slash command, CLI and dashboard.</td></tr>
+        <tr><td><code>effects.py</code>, <code>redact.py</code></td><td>Side-effect classification and secret masking.</td></tr>
+        <tr><td><code>store.py</code></td><td>Events, model requests, katas, versions, runs and audit log in one WAL-mode SQLite file.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="discovery">Pattern discovery</h2>
+    <h3>Segmentation</h3>
+    <p>History is split into runs of successful calls inside a single user turn. Failures, pauses longer than five minutes
+      and calls to conversational tools such as <code>clarify</code> break a run. A routine therefore never stitches
+      together work from different requests.</p>
+    <h3>Counting</h3>
+    <p>Every contiguous window of 2 to 8 calls is keyed by its signature: the tool names plus each call's argument keys.
+      Windows are counted once per turn and must recur in at least <code>min_support</code> distinct conversations, so
+      repeating something many times in one chat proves nothing. A window contained in an equally frequent longer
+      window is dropped, which yields whole routines rather than fragments.</p>
+    <h3>Coherence</h3>
+    <p>Every step after the first must be tied to the routine, either by data flow from an earlier result or by a fixed
+      argument. Sequences of tools that recur by chance, with unrelated arguments, are rejected before scoring.</p>
+    <h3>Generalisation</h3>
+    <p>For each argument across occurrences, Kata infers an expression:</p>
+    <table>
+      <thead><tr><th>Observed</th><th>Becomes</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Same value every time</td><td>Constant</td><td><code>path="src"</code></td></tr>
+        <tr><td>Equals a field of an earlier result</td><td>Reference</td><td><code>&lt;step 1.matches.0.path&gt;</code></td></tr>
+        <tr><td>Contains an earlier result</td><td>Concatenation with a reference</td><td><code>"wc -l &lt;step 2.path&gt;"</code></td></tr>
+        <tr><td>Changes, not derivable</td><td>Input parameter</td><td><code>"TODO({pattern})"</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Confidence</h3>
+    <p>For each occurrence, a template is built from all the others and must reproduce the held-out call sequence exactly.
+      The share that pass is the fit rate. Confidence is <code>fit_rate x (1 - 0.6^support)</code>: 0.78 at three
+      conversations with perfect fit, 0.87 at four. Candidates below <code>min_confidence</code> (0.75) are reported as
+      seen but not proposed.</p>
+
+    <h2 id="validation">Validation</h2>
+    <p>Validation runs before a proposal is stored and again at approval. No real tool is called.</p>
+    <table>
+      <thead><tr><th>Check</th><th>What it proves</th></tr></thead>
+      <tbody>
+        <tr><td>replay_matches_recorded</td><td>Inputs recovered from each recorded example re-render its exact arguments.</td></tr>
+        <tr><td>holdout_fit</td><td>The template generalises to examples it was not built from (at least 90%).</td></tr>
+        <tr><td>executor_replay</td><td>The executor issues the recorded calls, in order, with identical arguments.</td></tr>
+        <tr><td>failure_handling</td><td>An injected error stops the run and skips every later step.</td></tr>
+        <tr><td>timeout_handling</td><td>A hung step times out, is not re-issued, and stops the run.</td></tr>
+        <tr><td>input_schema, output_schema</td><td>Schemas accept recorded data and reject an incomplete call.</td></tr>
+        <tr><td>no_secrets</td><td>No credential or redacted value appears in the spec.</td></tr>
+        <tr><td>tools_available</td><td>Every tool exists today with the schema it had when recorded.</td></tr>
+        <tr><td>compilable_tools, recorded_examples, side_effects</td><td>Structural requirements and disclosure.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="execution">Execution</h2>
+    <p>A compiled tool validates its arguments, then for each step renders arguments from inputs and earlier results and
+      calls <code>ctx.dispatch_tool</code>. A step fails on an <code>error</code> payload, <code>[TOOL_ERROR]</code> text,
+      <code>success: false</code> or a non-zero <code>exit_code</code>. The run stops there and returns a trace with
+      every step's status, so the agent can continue by hand from the exact point of failure.</p>
+    <ul>
+      <li>Read-only steps retry once by default. Steps with side effects are never retried.</li>
+      <li>Each step has a timeout (60 seconds by default). A timed-out step is never re-issued.</li>
+      <li>Katas with external or unknown effects return an <code>approve</code> directive from <code>pre_tool_call</code>
+        with a fresh rule key on every call, so a remembered approval cannot repeat side effects silently. Under
+        unattended runs, Hermes's approval policy applies.</li>
+    </ul>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <table>
+      <thead><tr><th>Status</th><th>Meaning</th><th>Registered</th></tr></thead>
+      <tbody>
+        <tr><td>candidate</td><td>Proposed, waiting for you</td><td>No</td></tr>
+        <tr><td>active</td><td>Approved and healthy</td><td>Yes</td></tr>
+        <tr><td>stale</td><td>A tool schema changed or your manual runs no longer fit; a revised version is prepared for review</td><td>No</td></tr>
+        <tr><td>suspended</td><td>Three consecutive failed runs</td><td>No</td></tr>
+        <tr><td>disabled</td><td>Turned off by you; can be re-enabled after re-validation</td><td>No</td></tr>
+        <tr><td>rejected</td><td>Declined by you; never proposed again</td><td>No</td></tr>
+      </tbody>
+    </table>
+    <p>Every version is kept. Approving creates the active version, rollback switches to any earlier approved version
+      after re-validating it, and every transition is written to the audit log with its actor.</p>
+
+    <h2 id="config">Configuration</h2>
+    <p>Settings live under <code>plugins.entries.kata.settings</code> in <code>config.yaml</code> and appear in the
+      Desktop settings form.</p>
+    <table>
+      <thead><tr><th>Key</th><th>Default</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>min_support</code></td><td>3</td><td>Distinct conversations before proposing</td></tr>
+        <tr><td><code>min_confidence</code></td><td>0.75</td><td>Proposal threshold</td></tr>
+        <tr><td><code>max_steps</code></td><td>8</td><td>Longest routine considered</td></tr>
+        <tr><td><code>step_timeout_s</code></td><td>60</td><td>Per-step timeout</td></tr>
+        <tr><td><code>read_retries</code></td><td>1</td><td>Retries for read-only steps</td></tr>
+        <tr><td><code>retention_days</code></td><td>30</td><td>History kept for mining</td></tr>
+        <tr><td><code>record</code></td><td>true</td><td>Pause or resume observation</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="reference">Reference</h2>
+    <h3>Hermes surfaces used</h3>
+    <p>Hooks: <code>post_tool_call</code>, <code>post_api_request</code>, <code>pre_tool_call</code>,
+      <code>pre_llm_call</code>, <code>on_session_start</code>, <code>on_session_end</code>. Context:
+      <code>register_tool</code> (and the returned handle's <code>dispose</code>), <code>register_command</code>,
+      <code>register_cli_command</code>, <code>dispatch_tool</code>, <code>get_config</code>. Storage:
+      <code>plugins.plugin_storage.plugin_db</code>. Drift detection reads
+      <code>tools.registry.registry.get_schema</code>. All are on Hermes's public plugin API list.</p>
+    <h3>Dashboard API</h3>
+    <p>Mounted at <code>/api/plugins/kata/</code> behind the dashboard's authentication:
+      <code>GET overview</code>, <code>GET katas</code>, <code>GET katas/{id}</code>,
+      <code>POST katas/{id}/approve|reject|disable|enable|rollback</code>, <code>POST mine</code>, <code>GET audit</code>.</p>
+
+    <h2 id="limits">Limitations</h2>
+    <ul>
+      <li>Kata compiles linear routines. Branching on a result ("if the test fails, then...") stays with the agent.</li>
+      <li>References resolve against JSON results. Values buried inside free-form text output become parameters instead.</li>
+      <li>Whether a newly registered tool appears mid-session depends on when the host rebuilds the tool list. It is always
+        available from the next session.</li>
+      <li>Shell commands are classified conservatively: anything unrecognised is treated as having external effects.</li>
+    </ul>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Kata is MIT licensed and is not affiliated with Nous Research.</span>
+    <span><a href="index.html">Home</a> &middot; <a href="https://github.com/opeblow/kata">Source</a></span>
+  </div>
+</footer>
+</body>
+</html>
