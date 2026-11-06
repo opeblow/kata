@@ -170,6 +170,8 @@ def test_side_effecting_kata_asks_every_time(host):
         turn = host.new_turn()
         res = json.loads(host.call(turn, "read_file", {"path": f"src/module_{u}.py"}))
         host.call(turn, "send_message", {"to": "#reviews", "text": res["content"]})
+        host.end_session(turn)
+    rt.wait_idle()
     rt.service.mine()
     k = rt.store.katas()[0]
     detail = rt.service.detail(k["id"])
@@ -202,6 +204,8 @@ def test_secrets_are_redacted_and_never_compiled(host):
         turn = host.new_turn()
         host.call(turn, "terminal", {"command": f"echo {fake_key}"})
         host.call(turn, "read_file", {"path": f"src/module_{u}.py"})
+        host.end_session(turn)
+    rt.wait_idle()
     stored = rt.store.events()
     assert all(fake_key not in json.dumps(e.args) + e.result for e in stored)
     rep = rt.service.mine()
@@ -217,8 +221,6 @@ def test_workflow_drift_detected_from_manual_runs(host):
     kid = rt.store.katas()[0]["id"]
     rt.service.approve(kid, name="triage")
     rt.sync()
-    import time as _t
-    _t.sleep(0.01)
     # The agent keeps doing it by hand, but now counts words instead of lines.
     for u in USERS[:3]:
         turn = host.new_turn()
@@ -226,11 +228,15 @@ def test_workflow_drift_detected_from_manual_runs(host):
         p = res["matches"][0]["path"]
         host.call(turn, "read_file", {"path": p})
         host.call(turn, "terminal", {"command": f"wc -w {p}"})
-    rep = rt.service.mine()
-    # Different terminal command -> different template; the old one no longer fits.
-    assert rt.store.kata(kid)["status"] in ("active", "stale")
-    if rt.store.kata(kid)["status"] == "stale":
-        assert "kata_triage" in rep.drift
+        host.end_session(turn)
+    rt.wait_idle()  # background mining after each session end detects the change
+    k = rt.store.kata(kid)
+    assert k["status"] == "stale"
+    assert "no longer fit" in k["status_reason"]
+    rt.on_pre_llm_call()
+    assert "kata_triage" not in host.tools  # unregistered until reviewed
+    latest = rt.service.spec(kid)[0]
+    assert '"wc -w ' in json.dumps(latest.to_json()["steps"][2]["args"]).replace("\\", "")  # revision prepared
 
 
 def test_fake_terminal_is_portable(host, monkeypatch):
@@ -238,3 +244,34 @@ def test_fake_terminal_is_portable(host, monkeypatch):
     monkeypatch.setattr(fh.shutil, "which", lambda name: None)
     out = json.loads(host.dispatch_tool("terminal", {"command": "wc -l src/module_alice.py"}))
     assert out == {"output": "3 src/module_alice.py" + chr(10), "exit_code": 0}
+
+
+def test_work_in_progress_is_never_mined(host):
+    """Reproduces the race CI found: mining while another conversation is mid-routine."""
+    rt = host.runtime
+    for u in USERS[:3]:
+        triage_by_hand(host, u)
+    for u in USERS[3:6]:  # three conversations stopped after two of the three steps, still open
+        turn = host.new_turn()
+        res = json.loads(host.call(turn, "search_files", {"pattern": f"TODO({u})", "path": "src"}))
+        host.call(turn, "read_file", {"path": res["matches"][0]["path"]})
+    rt.service.mine()
+    names = [[s.tool for s in rt.service.spec(k["id"])[0].steps] for k in rt.store.katas()]
+    assert names == [["search_files", "read_file", "terminal"]]
+
+
+def test_fragments_of_a_rejected_routine_are_not_proposed(host):
+    rt = host.runtime
+    for u in USERS[:3]:
+        triage_by_hand(host, u)
+    rt.service.mine()
+    host.commands["kata"]("reject 1")
+    for u in USERS[3:6]:  # now the agent stops after reading, in finished sessions
+        turn = host.new_turn()
+        res = json.loads(host.call(turn, "search_files", {"pattern": f"TODO({u})", "path": "src"}))
+        host.call(turn, "read_file", {"path": res["matches"][0]["path"]})
+        host.end_session(turn)
+    rt.wait_idle()
+    rep = rt.service.mine()
+    assert len(rt.store.katas()) == 1
+    assert any(r["reason"] == "part of a routine you rejected" for r in rep.rejected)
