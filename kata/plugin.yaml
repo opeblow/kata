@@ -1,0 +1,50 @@
+manifest_version: 2
+name: kata
+version: 0.1.0
+description: >-
+  Learns the multi-step tool routines your agent keeps repeating and, only after you
+  approve them, compiles each one into a single deterministic tool that runs without
+  intermediate model round-trips.
+author: opeblow
+license: MIT
+homepage: https://github.com/opeblow/kata
+requires_hermes: ">=0.22.0"
+tags: [workflows, tools, automation, efficiency, determinism]
+provides_tools:
+  - kata_list
+provides_hooks:
+  - post_tool_call
+  - post_api_request
+  - pre_tool_call
+  - pre_llm_call
+  - on_session_start
+  - on_session_end
+config_schema:
+  min_support:
+    type: int
+    default: 3
+    description: Distinct conversations a routine must appear in before Kata proposes it.
+  min_confidence:
+    type: float
+    default: 0.75
+    description: Confidence threshold (0-1) a candidate must reach to be proposed.
+  max_steps:
+    type: int
+    default: 8
+    description: Longest routine, in tool calls, that Kata will consider.
+  step_timeout_s:
+    type: float
+    default: 60
+    description: Per-step timeout for compiled routines, in seconds.
+  read_retries:
+    type: int
+    default: 1
+    description: Retries for read-only steps. Steps with side effects are never retried.
+  retention_days:
+    type: int
+    default: 30
+    description: Days of tool-call history kept for mining.
+  record:
+    type: bool
+    default: true
+    description: Record tool calls for mining. Turn off to pause observation.
