@@ -95,7 +95,7 @@ def handle(svc: KataService, raw: str, after_change: Callable[[], None] = lambda
             parts = [f"Analysed {rep.events} recorded tool calls."]
             if rep.proposed:
                 parts.append("New proposals: " + ", ".join(rep.proposed) + ". Review with `/kata review <name>`.")
-            waiting = [n for n in rep.pending if n not in rep.updated]
+            waiting = rep.pending
             if waiting:
                 parts.append("Waiting for your review: " + ", ".join(waiting) + ". See `/kata review <name>`.")
             if rep.updated:
