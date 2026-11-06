@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+!kata/dashboard/dist/
+wheels/
+*.egg
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test, coverage and lint caches
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+
+# Local Kata data (databases hold recorded tool calls)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+plugin-data/
+
+# Secrets and credentials: never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+credentials*.json
+secrets.*
+auth.json
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+tmp/
+.cache/
+
+# Playwright and Node
+node_modules/
+playwright-report/
+test-results/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local assistant settings
+.claude/
