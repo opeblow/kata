@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS events (
     result TEXT NOT NULL,
     status TEXT NOT NULL,
     duration_ms INTEGER NOT NULL,
-    ended_at REAL NOT NULL
+    ended_at REAL NOT NULL,
+    seq INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS events_turn ON events(conversation_id, turn_id, id);
 CREATE INDEX IF NOT EXISTS events_time ON events(ended_at);
@@ -38,7 +39,8 @@ CREATE TABLE IF NOT EXISTS api_calls (
     turn_id TEXT NOT NULL,
     started_at REAL NOT NULL,
     duration_s REAL NOT NULL,
-    total_tokens INTEGER NOT NULL
+    total_tokens INTEGER NOT NULL,
+    seq INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS api_turn ON api_calls(turn_id, started_at);
 
@@ -92,11 +94,22 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # Forward-only migrations: MIGRATIONS[n] upgrades a database at version n to n + 1.
 # Each runs in one transaction. Never edit a released migration; append a new one.
-MIGRATIONS: dict[int, str] = {}
+MIGRATIONS: dict[int, str] = {
+    # v2: order tool calls and model requests by a shared sequence instead of wall-clock time,
+    # whose resolution is too coarse on some platforms to attribute requests between steps.
+    1: """
+    ALTER TABLE events ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE api_calls ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+    """,
+}
+INDEXES = """
+CREATE INDEX IF NOT EXISTS events_seq ON events(seq);
+CREATE INDEX IF NOT EXISTS api_seq ON api_calls(turn_id, seq);
+"""
 
 
 class StoreError(Exception):
@@ -115,7 +128,11 @@ class Store:
 
     def _migrate(self) -> None:
         rows = self._conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchall()
-        current = int(rows[0][0]) if rows else SCHEMA_VERSION
+        if rows:
+            current = int(rows[0][0])
+        else:  # unversioned: a fresh database, or one written before versioning existed
+            cols = {r[1] for r in self._conn.execute("PRAGMA table_info(events)")}
+            current = SCHEMA_VERSION if "seq" in cols else 1
         if current > SCHEMA_VERSION:
             raise StoreError(f"Kata database is schema v{current}, newer than this plugin (v{SCHEMA_VERSION}). "
                              "Update the plugin; your data is untouched.")
@@ -123,6 +140,7 @@ class Store:
             with self._conn:
                 self._conn.executescript(MIGRATIONS[current])
             current += 1
+        self._conn.executescript(INDEXES)
         self._conn.execute("INSERT INTO meta(key, value) VALUES('schema_version', ?) "
                            "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (str(current),))
         self._conn.commit()
@@ -161,12 +179,16 @@ class Store:
         rows = self._query("SELECT value FROM meta WHERE key='generation'")
         return int(rows[0][0]) if rows else 0
 
+    # -- shared sequence: total order of tool calls and model requests -----
+    _NEXT_SEQ = ("SELECT COALESCE(MAX(m), 0) + 1 FROM (SELECT MAX(seq) AS m FROM events "
+                 "UNION ALL SELECT MAX(seq) FROM api_calls)")
+
     # -- events ------------------------------------------------------------
     def add_event(self, *, conversation_id: str, session_id: str, turn_id: str, tool_name: str,
                   args: dict, result: str, status: str, duration_ms: int, ended_at: float) -> int:
         cur = self._exec(
             "INSERT INTO events(conversation_id, session_id, turn_id, tool_name, args, result, status,"
-            " duration_ms, ended_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            f" duration_ms, ended_at, seq) VALUES (?,?,?,?,?,?,?,?,?,({self._NEXT_SEQ}))",
             (conversation_id, session_id, turn_id, tool_name, json.dumps(args, sort_keys=True, default=str),
              result, status, int(duration_ms), ended_at),
         )
@@ -181,8 +203,8 @@ class Store:
             params = (since, since, limit - 1)
         rows = self._query(
             "SELECT id, conversation_id, session_id, turn_id, tool_name, args, result, status, duration_ms,"
-            f" ended_at FROM events WHERE {where} ORDER BY conversation_id, turn_id, id", params)
-        return [ToolEvent(r[0], r[1], r[2], r[3], r[4], json.loads(r[5]), r[6], r[7], r[8], r[9]) for r in rows]
+            f" ended_at, seq FROM events WHERE {where} ORDER BY conversation_id, turn_id, id", params)
+        return [ToolEvent(r[0], r[1], r[2], r[3], r[4], json.loads(r[5]), r[6], r[7], r[8], r[9], r[10]) for r in rows]
 
     def events_by_ids(self, ids: list[int]) -> list[ToolEvent]:
         if not ids:
@@ -190,8 +212,8 @@ class Store:
         marks = ",".join("?" * len(ids))
         rows = self._query(
             "SELECT id, conversation_id, session_id, turn_id, tool_name, args, result, status, duration_ms,"
-            f" ended_at FROM events WHERE id IN ({marks}) ORDER BY id", ids)
-        return [ToolEvent(r[0], r[1], r[2], r[3], r[4], json.loads(r[5]), r[6], r[7], r[8], r[9]) for r in rows]
+            f" ended_at, seq FROM events WHERE id IN ({marks}) ORDER BY id", ids)
+        return [ToolEvent(r[0], r[1], r[2], r[3], r[4], json.loads(r[5]), r[6], r[7], r[8], r[9], r[10]) for r in rows]
 
     def event_count(self) -> int:
         return int(self._query("SELECT COUNT(*) FROM events")[0][0])
@@ -218,13 +240,15 @@ class Store:
     # -- api calls (for measuring the model overhead a kata removes) -------
     def add_api_call(self, *, session_id: str, turn_id: str, started_at: float, duration_s: float,
                      total_tokens: int) -> None:
-        self._exec("INSERT INTO api_calls(session_id, turn_id, started_at, duration_s, total_tokens)"
-                   " VALUES (?,?,?,?,?)", (session_id, turn_id, started_at, duration_s, int(total_tokens)))
+        self._exec("INSERT INTO api_calls(session_id, turn_id, started_at, duration_s, total_tokens, seq)"
+                   f" VALUES (?,?,?,?,?,({self._NEXT_SEQ}))",
+                   (session_id, turn_id, started_at, duration_s, int(total_tokens)))
 
-    def api_calls_between(self, turn_id: str, start: float, end: float) -> list[tuple[float, float, int]]:
+    def api_calls_between(self, turn_id: str, after_seq: int, before_seq: int) -> list[tuple[float, float, int]]:
+        """Model requests that completed strictly between two recorded tool calls of one turn."""
         return [tuple(r) for r in self._query(
-            "SELECT started_at, duration_s, total_tokens FROM api_calls WHERE turn_id=? AND started_at>=?"
-            " AND started_at<=?", (turn_id, start, end))]
+            "SELECT started_at, duration_s, total_tokens FROM api_calls WHERE turn_id=? AND seq>? AND seq<?",
+            (turn_id, after_seq, before_seq))]
 
     # -- katas -------------------------------------------------------------
     def kata_by_signature(self, signature: str) -> dict | None:
