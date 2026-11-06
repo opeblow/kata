@@ -14,8 +14,8 @@ Nothing activates without you.
 <br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/opeblow/kata/ci.yml?branch=main&label=CI&style=flat-square&labelColor=1a1814)](https://github.com/opeblow/kata/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-42%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
-[![Coverage](https://img.shields.io/badge/coverage-88%25-3f7a52?style=flat-square&labelColor=1a1814)](.github/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-44%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
+[![Coverage](https://img.shields.io/badge/coverage-89%25-3f7a52?style=flat-square&labelColor=1a1814)](.github/workflows/ci.yml)
 [![Security scan](https://img.shields.io/badge/hermes%20security%20scan-0%20findings-3f7a52?style=flat-square&labelColor=1a1814)](SECURITY.md)
 [![Runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-3f7a52?style=flat-square&labelColor=1a1814)](pyproject.toml)
 <br>
@@ -476,7 +476,7 @@ kata/
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pytest --cov=kata          # 42 tests, 88% coverage
+python -m pytest --cov=kata          # 44 tests, 89% coverage
 ruff check .
 python scripts/demo.py --db /tmp/kata-demo.db
 KATA_DB_PATH=/tmp/kata-demo.db python devtools/preview_server.py   # dashboard at http://127.0.0.1:8765
