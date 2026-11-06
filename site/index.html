@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kata for Hermes Agent</title>
+<meta name="description" content="Kata learns the multi-step routines your Hermes agent repeats and, once you approve them, compiles each into one deterministic tool.">
+<meta name="theme-color" content="#f4f0e6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14130f" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,500;1,6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="Kata home">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="10" fill="#c8361d"/><path d="M17 42 L28 24 L37 38 L47 20" fill="none" stroke="#f4f0e6" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="1 7"/><path d="M17 46 H47" stroke="#f4f0e6" stroke-width="4" stroke-linecap="round"/><circle cx="17" cy="42" r="3.6" fill="#f4f0e6"/><circle cx="28" cy="24" r="3.6" fill="#f4f0e6"/><circle cx="37" cy="38" r="3.6" fill="#f4f0e6"/><circle cx="47" cy="20" r="3.6" fill="#f4f0e6"/></svg>
+      Kata
+    </a>
+    <nav aria-label="Primary">
+      <ul>
+        <li class="hide-sm"><a href="#how">How it works</a></li>
+        <li class="hide-sm"><a href="#safety">Safety</a></li>
+        <li><a href="docs.html">Docs</a></li>
+        <li><a href="https://github.com/opeblow/kata">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">A plugin for Hermes Agent</p>
+        <h1>Do it three times.<br><em>Approve it once.</em></h1>
+        <p class="lede">Kata watches the tool calls your agent makes, finds the multi-step routines it keeps
+          rediscovering, and, only after you review and approve them, compiles each one into a single
+          deterministic tool. No model calls between steps. Every run traced.</p>
+        <div class="cta">
+          <a class="btn btn--ink" href="docs.html#install">Install Kata</a>
+          <a class="btn btn--line" href="docs.html">Read how it works</a>
+        </div>
+        <div class="install">
+          <code id="install-cmd">hermes plugins install kata</code>
+          <button class="copy" type="button" data-copy="install-cmd">Copy</button>
+        </div>
+      </div>
+
+      <figure class="strokes" aria-label="Three tool calls with model round-trips between them, compiled into one call">
+        <div class="strokes__label"><span>BY HAND</span><span>3 tool calls, 2 model round-trips</span></div>
+        <svg viewBox="0 -18 440 300" role="img" aria-hidden="true">
+          <line class="wire" x1="70" y1="60" x2="370" y2="60" stroke-dasharray="2 5"/>
+          <path class="model" d="M88 58 C 130 0, 182 0, 202 58"/>
+          <path class="model" d="M238 58 C 280 0, 332 0, 352 58"/>
+          <text class="model-text" x="145" y="-4" text-anchor="middle">model</text>
+          <text class="model-text" x="295" y="-4" text-anchor="middle">model</text>
+          <rect class="node" x="22" y="44" width="96" height="32" rx="6"/><text class="node-text" x="70" y="64" text-anchor="middle">search_files</text>
+          <rect class="node" x="172" y="44" width="96" height="32" rx="6"/><text class="node-text" x="220" y="64" text-anchor="middle">read_file</text>
+          <rect class="node" x="322" y="44" width="96" height="32" rx="6"/><text class="node-text" x="370" y="64" text-anchor="middle">terminal</text>
+          <line class="divider" x1="0" y1="138" x2="440" y2="138"/>
+          <text class="model-text" x="0" y="168">WITH KATA</text>
+          <text class="model-text" x="440" y="168" text-anchor="end">1 tool call, 0 round-trips</text>
+          <rect class="seal" x="22" y="196" width="150" height="34" rx="6"/>
+          <text class="seal-text" x="97" y="217" text-anchor="middle">kata_triage_todo</text>
+          <line class="one" x1="182" y1="213" x2="410" y2="213"/>
+          <circle cx="250" cy="213" r="4" fill="var(--seal)"/><circle cx="330" cy="213" r="4" fill="var(--seal)"/><circle cx="410" cy="213" r="4" fill="var(--seal)"/>
+          <text class="caption" x="22" y="268">Same calls, same order, same arguments.</text>
+        </svg>
+      </figure>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="problem-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="num">01 / The problem</span>
+        <div>
+          <h2 id="problem-title">Agents rediscover the same workflow every single time.</h2>
+          <p>Hermes remembers facts and grows skills. But when it searches, reads and checks the same way for the
+            fortieth time, it still asks the model what to do after every step. That costs tokens, time and,
+            occasionally, a step done differently from last time.</p>
+        </div>
+      </div>
+      <div class="problem reveal">
+        <div><h3>Cost</h3><p>Each step between tool calls is a full model request carrying the whole context.</p></div>
+        <div><h3>Latency</h3><p>A three-step routine waits on the model twice before it can finish.</p></div>
+        <div><h3>Drift</h3><p>A prompt or skill describes the routine. Nothing guarantees the agent follows it the same way.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="num">02 / How it works</span>
+        <div>
+          <h2 id="how-title">From observed behaviour to an audited tool, with you in the middle.</h2>
+          <p>Every stage uses documented Hermes plugin interfaces: lifecycle hooks, tool registration and
+            in-process dispatch.</p>
+        </div>
+      </div>
+      <ol class="steps reveal">
+        <li><span class="k"><b>01</b>Observe</span><h3>Record real tool calls</h3><p>The <code>post_tool_call</code> hook stores each call with its turn and conversation. Secrets are masked before anything touches disk. Model requests are timed from <code>post_api_request</code>.</p></li>
+        <li><span class="k"><b>02</b>Discover</span><h3>Find routines, not coincidences</h3><p>Only contiguous, successful calls inside one turn count. A routine must recur in separate conversations, and a template built without one example must reproduce that example exactly.</p></li>
+        <li><span class="k"><b>03</b>Validate</span><h3>Prove it offline</h3><p>Twelve checks run against recorded history with a stub dispatcher: exact replay, call-for-call execution, schemas, injected failures and timeouts, secrets, tool availability.</p></li>
+        <li><span class="k"><b>04</b>Approve</span><h3>Nothing activates on its own</h3><p>You see the steps, the data flow, permissions, schemas, side effects and evidence. Approve it in <code>/kata</code> or the dashboard tab. Rejections are final.</p></li>
+        <li><span class="k"><b>05</b>Run</span><h3>One call, every step traced</h3><p>The approved routine becomes a tool the agent calls once. It stops at the first failure, retries only read-only steps, and becomes stale if an underlying tool changes.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="card-title">
+    <div class="wrap card-grid">
+      <div class="reveal">
+        <div class="section-head" style="grid-template-columns:1fr;margin-bottom:var(--s5)">
+          <span class="num">03 / The proposal</span>
+          <div>
+            <h2 id="card-title">What you approve is exactly what runs.</h2>
+            <p>This card is the unedited output of <code>/kata review</code> from the reproducible demo in the
+              repository.</p>
+          </div>
+        </div>
+        <dl class="notes">
+          <div><dt>{pattern}</dt><dd>An input. Kata found which part of the argument changed between runs and which stayed fixed.</dd></div>
+          <div><dt>&lt;step 1.matches.0.path&gt;</dt><dd>Data flow. The value comes from the previous step's result, as it did every time you did it by hand.</dd></div>
+          <div><dt>[read: `wc` only reads]</dt><dd>Side effects are classified per step. Anything external or unknown asks you on every call.</dd></div>
+        </dl>
+      </div>
+      <pre class="terminal reveal" aria-label="Proposal card output"><span class="h">## kata_search_read_terminal  (candidate, v2)</span>
+
+Routine observed in 4 separate conversations:
+`search_files`, then `read_file`, then `terminal`.
+
+<span class="h">### Why Kata proposed this</span>
+- Seen in 4 separate conversations (4 matching runs)
+- Held-out fit 100%, confidence 0.87
+- By hand it took 3 tool calls, 2.0 model round-trips
+
+<span class="h">### Steps (executed in this order, no model calls in between)</span>
+1. `search_files`(path="src", pattern="TODO({pattern})")
+   <span class="dim">[read: `search_files` only reads]</span>
+2. `read_file`(path=&lt;step 1.matches.0.path&gt;)
+   <span class="dim">[read: `read_file` only reads]</span>
+3. `terminal`(command="wc -l &lt;step 2.path&gt;")
+   <span class="dim">[read: `wc` only reads]</span>
+
+<span class="h">### Permissions</span>
+- May call only: read_file, search_files, terminal
+- Highest effect: read
+
+<span class="h">### Validation (passed)</span>
+<span class="ok">- [x]</span> replay_matches_recorded: 4/4 examples reproduced exactly
+<span class="ok">- [x]</span> holdout_fit: held-out fit 100% (minimum 90%)
+<span class="ok">- [x]</span> executor_replay: reproduced 4 recorded runs call-for-call
+<span class="ok">- [x]</span> failure_handling: injected failure at step 2 stopped the run
+<span class="ok">- [x]</span> timeout_handling: a hung step is not re-issued
+<span class="ok">- [x]</span> no_secrets: no credentials embedded
+<span class="ok">- [x]</span> tools_available: all tools available, schemas unchanged
+<span class="dim">  ... 5 more checks</span>
+
+Approve with `/kata approve 1` (optionally `as &lt;name&gt;`)</pre>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="measure-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="num">04 / Measured</span>
+        <div>
+          <h2 id="measure-title">The round-trips you remove are the ones spent deciding the next step.</h2>
+          <p>One TODO triage from <code>scripts/demo.py</code>, before and after approval. Run it yourself; it needs
+            no model and no API key.</p>
+        </div>
+      </div>
+      <table class="measure reveal">
+        <thead><tr><th scope="col">Per run</th><th scope="col">By hand</th><th scope="col">With Kata</th></tr></thead>
+        <tbody>
+          <tr><td>Tool calls the model makes</td><td class="big">3</td><td class="big seal">1</td></tr>
+          <tr><td>Model requests in the turn</td><td class="big">4</td><td class="big seal">2</td></tr>
+          <tr><td>Steps executed</td><td class="big">3</td><td class="big">3</td></tr>
+        </tbody>
+      </table>
+      <p class="footnote">Tool calls and model requests are counted by the demo host. Token and latency savings depend on
+        your model and context size; Kata measures them on your machine from <code>post_api_request</code> and shows
+        them in the dashboard. We do not publish projected numbers.</p>
+    </div>
+  </section>
+
+  <section class="band" id="safety" aria-labelledby="safety-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="num">05 / Safety</span>
+        <div>
+          <h2 id="safety-title">Built to be trusted with your tools.</h2>
+          <p>Kata only ever replays what you already did, only after you say yes, and only through Hermes.</p>
+        </div>
+      </div>
+      <div class="safety reveal">
+        <div><h3>Explicit approval, always</h3><p>Observed behaviour never becomes an active tool on its own. Approval re-runs validation and is written to an audit log.</p></div>
+        <div><h3>No silent side effects</h3><p>Steps that reach outside the machine, or that Kata cannot classify, ask you on every invocation with a fresh approval key. They are never retried.</p></div>
+        <div><h3>Least privilege</h3><p>A kata can call only the tools in its own steps, through Hermes's dispatcher, with Hermes's own checks.</p></div>
+        <div><h3>No secrets in tools</h3><p>Credentials are masked at record time. A routine whose fixed arguments contain a secret is never compiled.</p></div>
+        <div><h3>Drift aware</h3><p>Tool schemas are fingerprinted at approval. A change marks the kata stale and unregisters it. Repeated failures suspend it.</p></div>
+        <div><h3>Local only</h3><p>History lives in one SQLite file in your Hermes profile. Kata makes no network calls of its own.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="start-title">
+    <div class="wrap start">
+      <div class="reveal">
+        <span class="num" style="font:500 13px/1.8 var(--mono);color:var(--seal)">06 / Start</span>
+        <h2 id="start-title" style="margin-top:var(--s3)">Install it and keep working.</h2>
+        <p style="color:var(--ink-2);font-size:18px">Kata stays quiet until a routine has really repeated. Then it asks.</p>
+        <p><a class="btn btn--ink" href="docs.html#install">Full setup guide</a></p>
+      </div>
+      <div class="reveal">
+<pre class="block"><span class="c"># install from the Hermes plugin catalog</span>
+hermes plugins install kata
+hermes plugins enable kata
+
+<span class="c"># later, inside any session</span>
+/kata                 <span class="c"># what Kata has found</span>
+/kata review 1        <span class="c"># full proposal</span>
+/kata approve 1 as triage_todo</pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Kata is MIT licensed and is not affiliated with Nous Research.</span>
+    <span><a href="docs.html">Docs</a> &middot; <a href="https://github.com/opeblow/kata/blob/main/SECURITY.md">Security</a> &middot; <a href="https://github.com/opeblow/kata/blob/main/PRIVACY.md">Privacy</a> &middot; <a href="https://github.com/opeblow/kata">Source</a></span>
+  </div>
+</footer>
+<script src="main.js" defer></script>
+</body>
+</html>
