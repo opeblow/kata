@@ -1,0 +1,11 @@
+{
+  "name": "kata",
+  "label": "Kata",
+  "description": "Review, approve and manage routines compiled from your agent's own history.",
+  "icon": "Workflow",
+  "version": "0.1.0",
+  "tab": { "path": "/kata", "position": "after:skills" },
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}
