@@ -58,6 +58,7 @@ class KataRuntime:
         self._generation = -1
         self._lock = threading.RLock()
         self._mining = threading.Lock()
+        self._background: list[threading.Thread] = []
 
     def _cfg(self, key: str, default: Any) -> Any:
         try:
@@ -107,8 +108,20 @@ class KataRuntime:
             self.sync()
         return None
 
-    def on_session_end(self, **_: Any) -> None:
-        threading.Thread(target=self.mine_quietly, name="kata-miner", daemon=True).start()
+    def on_session_end(self, session_id: str = "", **_: Any) -> None:
+        try:
+            self.store.end_session(session_id)
+        except Exception:
+            log.exception("kata: failed to record session end")
+        t = threading.Thread(target=self.mine_quietly, name="kata-miner", daemon=True)
+        self._background.append(t)
+        t.start()
+
+    def wait_idle(self, timeout: float = 30.0) -> None:
+        """Block until background mining started by session ends has finished."""
+        for t in list(self._background):
+            t.join(timeout)
+        self._background = [t for t in self._background if t.is_alive()]
 
     def mine_quietly(self) -> None:
         if not self._mining.acquire(blocking=False):
