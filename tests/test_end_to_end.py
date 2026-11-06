@@ -275,3 +275,11 @@ def test_fragments_of_a_rejected_routine_are_not_proposed(host):
     rep = rt.service.mine()
     assert len(rt.store.katas()) == 1
     assert any(r["reason"] == "part of a routine you rejected" for r in rep.rejected)
+
+
+def test_host_accepts_an_aliased_sandbox_path(sandbox):
+    from devtools.fake_hermes import FakeHermes
+    aliased = sandbox / "src" / ".."  # same folder, different spelling
+    host = FakeHermes(sandbox=aliased)
+    out = json.loads(host.dispatch_tool("search_files", {"pattern": "TODO(alice)", "path": "src"}))
+    assert out["matches"][0]["path"] == "src/module_alice.py"
