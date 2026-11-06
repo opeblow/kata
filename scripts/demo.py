@@ -55,6 +55,7 @@ def by_hand(host: FakeHermes, user: str) -> dict:
     host.call(turn, "terminal", {"command": f"wc -l {path}"})
     host.model_request(turn, tokens=980, latency_s=1.1)
     host.end_session(turn)
+    host.runtime_wait()
     return {"tool_calls": host.tool_calls - calls0, "model_calls": host.model_calls - model0,
             "elapsed_ms": int((time.perf_counter() - t0) * 1000)}
 
@@ -71,6 +72,7 @@ def main() -> int:
         db.unlink()
     host = FakeHermes(sandbox=make_repo(work))
     rt = install(host, Store.open_path(db), fingerprint=host.schema_fingerprint)
+    host.runtime_wait = rt.wait_idle
 
     print(RULE + "\n1. The agent triages a TODO by hand, in four separate conversations\n" + RULE)
     for u in USERS[:4]:
@@ -116,6 +118,7 @@ def main() -> int:
         src = json.loads(host.call(turn, "read_file", {"path": f"src/billing_{u}.py"}))
         host.call(turn, "write_file", {"path": f"src/billing_{u}.py.bak", "content": src["content"]})
         host.end_session(turn)
+    rt.wait_idle()
     rt.service.mine()
     pending = [k["name"] for k in rt.store.katas("candidate")]
     print(f"   Proposed and waiting for review: {', '.join(pending) or 'none'}")
