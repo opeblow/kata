@@ -91,6 +91,8 @@ CREATE TABLE IF NOT EXISTS audit (
 );
 
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS sessions (session_id TEXT PRIMARY KEY, ended_at REAL NOT NULL);
 """
 
 
@@ -236,6 +238,15 @@ class Store:
         self._exec("DELETE FROM runs WHERE id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER "
                    "(PARTITION BY kata_id ORDER BY id DESC) AS rn FROM runs) WHERE rn > 500)")
         return cur.rowcount
+
+    # -- sessions: which work is finished and safe to learn from ----------
+    def end_session(self, session_id: str) -> None:
+        if session_id:
+            self._exec("INSERT INTO sessions(session_id, ended_at) VALUES (?, ?) ON CONFLICT(session_id) "
+                       "DO UPDATE SET ended_at=excluded.ended_at", (session_id, time.time()))
+
+    def ended_sessions(self) -> set[str]:
+        return {r[0] for r in self._query("SELECT session_id FROM sessions")}
 
     # -- api calls (for measuring the model overhead a kata removes) -------
     def add_api_call(self, *, session_id: str, turn_id: str, started_at: float, duration_s: float,
