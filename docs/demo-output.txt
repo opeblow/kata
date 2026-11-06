@@ -1,0 +1,109 @@
+------------------------------------------------------------------------
+1. The agent triages a TODO by hand, in four separate conversations
+------------------------------------------------------------------------
+   alice  3 tool calls, 4 model requests
+   bob    3 tool calls, 4 model requests
+   carol  3 tool calls, 4 model requests
+   dave   3 tool calls, 4 model requests
+------------------------------------------------------------------------
+2. Kata analyses the history (it already did, in the background, on session end)
+------------------------------------------------------------------------
+   Analysed 12 recorded tool calls.
+   Waiting for your review: kata_search_read_terminal. See `/kata review <name>`.
+------------------------------------------------------------------------
+3. Proposal card, exactly as /kata review shows it
+------------------------------------------------------------------------
+## kata_search_read_terminal  (candidate, v2)
+
+Routine observed in 4 separate conversations: `search_files`, then `read_file`, then `terminal`.
+
+### Why Kata proposed this
+- Seen in 4 separate conversations (4 matching runs)
+- Held-out fit 100%, confidence 0.87
+- By hand it took 3 tool calls, 2.0 model round-trips, ~4190 tokens, 131 ms
+
+### Steps (executed in this order, no model calls in between)
+1. `search_files`(path="src", pattern="TODO({pattern})")  [read: `search_files` only reads]
+2. `read_file`(path=<step 1.matches.0.path>)  [read: `read_file` only reads]
+3. `terminal`(command="wc -l <step 2.path>")  [read: `wc` only reads]
+
+### Permissions
+- May call only: read_file, search_files, terminal
+- Highest effect: read
+- Read-only or local steps; read-only steps may be retried once on error
+
+### Input schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "pattern": {
+      "type": "string",
+      "description": "Variable part of `pattern` in step 1."
+    }
+  },
+  "required": [
+    "pattern"
+  ],
+  "additionalProperties": false
+}
+```
+### Output schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "exit_code": {
+      "type": "integer"
+    },
+    "output": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "exit_code",
+    "output"
+  ]
+}
+```
+### Validation (passed)
+- [x] compilable_tools: all steps use compilable tools
+- [x] recorded_examples: 4 recorded example(s) available
+- [x] replay_matches_recorded: 4/4 examples reproduced exactly
+- [x] holdout_fit: held-out fit 100% (minimum 90%)
+- [x] input_schema: schema accepts recorded inputs and rejects missing ones
+- [x] executor_replay: executor reproduced 4 recorded run(s) call-for-call
+- [x] failure_handling: injected failure at step 2 stopped the run; later steps skipped
+- [x] timeout_handling: a hung step times out, is not re-issued, and stops the run
+- [x] output_schema: recorded results match the output schema
+- [x] no_secrets: no credentials embedded
+- [x] tools_available: all tools available, schemas unchanged
+- [x] side_effects: read/local only; runs without extra prompts
+
+Approve with `/kata approve 1` (optionally `as <name>`), or `/kata reject 1`.
+------------------------------------------------------------------------
+4. The user approves it
+------------------------------------------------------------------------
+   Approved `kata_triage_todo` v3 and registered it. Hermes builds each session's tool list when the session starts, so the agent can call it from your next session.
+------------------------------------------------------------------------
+5. A new conversation does the same task with the compiled tool
+------------------------------------------------------------------------
+   ok=True  steps=search_files:ok > read_file:ok > terminal:ok  executed in 141 ms
+   result: 6 src/billing_erin.py
+------------------------------------------------------------------------
+6. Measured cost, one triage
+------------------------------------------------------------------------
+                              by hand   with kata
+   tool calls                       3           1
+   model requests                   4           2
+   model tokens                  6810        2620
+   model time (s)                 7.8         3.0
+
+   Tool calls and model requests are counted. Token and latency figures come from this
+   script's simulated model; with a real model Kata measures them from post_api_request.
+------------------------------------------------------------------------
+7. Meanwhile, another routine repeats: back up a file before editing it
+------------------------------------------------------------------------
+   Proposed and waiting for review: kata_read_write
+
+   Database: (temporary file)
