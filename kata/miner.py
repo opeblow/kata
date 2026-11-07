@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from .effects import classify_occurrences, compilable
-from .models import Const, Evidence, Expr, KataSpec, Obj, Ref, StepSpec, ToolEvent
+from .models import TOOLS_NOT_LOADED, Const, Evidence, Expr, KataSpec, Obj, Ref, StepSpec, ToolEvent
 from .redact import REDACTED, looks_secret
 from .templating import Inference, json_type, match, param_specs, parse_result
 
@@ -247,6 +247,11 @@ def measure_baseline(occ: list[list[ToolEvent]], api_lookup: Callable | None) ->
     }
 
 
+def _real_fp(fingerprint: Callable[[str], str | None] | None, tool: str) -> str:
+    fp = fingerprint(tool) if fingerprint else None
+    return fp if fp and fp != TOOLS_NOT_LOADED else ""
+
+
 def compile_candidate(occ: list[list[ToolEvent]], *, support: int,
                       api_lookup: Callable | None = None,
                       fingerprint: Callable[[str], str | None] | None = None) -> tuple[KataSpec | None, str]:
@@ -267,7 +272,7 @@ def compile_candidate(occ: list[list[ToolEvent]], *, support: int,
     for i, t in enumerate(tools):
         effect, reason = classify_occurrences(t, [o[i].args for o in occ])
         steps.append(StepSpec(tool=t, args=exprs[i], effect=effect, effect_reason=reason,
-                              schema_fingerprint=(fingerprint(t) or "") if fingerprint else ""))
+                              schema_fingerprint=_real_fp(fingerprint, t)))
     evidence = Evidence(
         support=support, occurrences=len(occ), fit_rate=round(fit, 3), confidence=confidence,
         example_event_ids=[[e.id for e in o] for o in occ[-MAX_EXAMPLES:]],
