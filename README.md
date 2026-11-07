@@ -292,7 +292,7 @@ next session. You can also open the **Kata** tab in `hermes dashboard`.
 To install from source at a pinned commit before the catalog listing is merged:
 
 ```bash
-hermes plugins install opeblow/kata --ref <40-character-commit-sha>
+hermes plugins install "opeblow/kata#kata" --ref <40-character-commit-sha>
 ```
 
 ## Verify it yourself in 30 seconds
