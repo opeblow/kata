@@ -194,3 +194,5 @@ def test_real_windows_paths_from_a_live_hermes_session():
     results = [{"matches": [{"path": f"src{bs}billing_dave.py"}]}, {"path": "src/billing_dave.py"}]
     from kata.templating import render
     assert render(spec.steps[2].args, {"pattern": "dave"}, results)["command"] == "wc -l src/billing_dave.py"
+    # The regex escapes are structure, not input: the search pattern stays valid for a new user.
+    assert render(spec.steps[0].args, {"pattern": "dave"}, [])["pattern"] == f"TODO{bs}(dave{bs})"
