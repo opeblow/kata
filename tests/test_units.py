@@ -5,7 +5,18 @@ import json
 from kata.effects import classify
 from kata.executor import Executor, step_failed
 from kata.miner import MinerConfig, mine, segment
-from kata.models import Concat, Const, Effect, Param, Ref, ToolEvent, expr_from_json, expr_to_json
+from kata.models import (
+    Concat,
+    Const,
+    Effect,
+    Param,
+    ParamSpec,
+    Ref,
+    ToolEvent,
+    _param_schema,
+    expr_from_json,
+    expr_to_json,
+)
 from kata.redact import REDACTED, redact
 from kata.templating import Inference, match, render
 from kata.validator import validate
@@ -196,3 +207,22 @@ def test_real_windows_paths_from_a_live_hermes_session():
     assert render(spec.steps[2].args, {"pattern": "dave"}, results)["command"] == "wc -l src/billing_dave.py"
     # The regex escapes are structure, not input: the search pattern stays valid for a new user.
     assert render(spec.steps[0].args, {"pattern": "dave"}, [])["pattern"] == f"TODO{bs}(dave{bs})"
+
+
+# -- input schema shown to the agent ---------------------------------------------
+
+def test_input_schema_shows_decoded_examples():
+    # Found in real Hermes: with no example, the model passed a whole regex ("TODO.*alice|alice.*TODO")
+    # where the kata wanted only "alice", and step 1 matched nothing.
+    p = ParamSpec("pattern", "string", "Variable part of `pattern` in step 1.", ['"alice"', '"bob"', '"carol"', '"dave"'])
+    schema = _param_schema(p)
+    assert schema["examples"] == ["alice", "bob", "carol"]
+    assert '"alice", "bob", "carol"' in schema["description"]
+    assert schema["type"] == "string"
+
+
+def test_input_schema_without_examples_is_unchanged():
+    p = ParamSpec("n", "integer", "Count.", [])
+    assert _param_schema(p) == {"type": "integer", "description": "Count."}
+    bad = ParamSpec("x", "string", "X.", ["not json", '{"a": 1}'])
+    assert "examples" not in _param_schema(bad)

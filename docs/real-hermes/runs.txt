@@ -1,0 +1,4 @@
+2026-11-07 10:15  v3  ok   5565 ms  search_files:ok read_file:ok terminal:ok
+2026-11-07 10:12  v3  ok   5561 ms  search_files:ok read_file:ok terminal:ok
+2026-11-07 10:12  v3  ok   6047 ms  search_files:ok read_file:ok terminal:ok
+2026-11-07 10:08  v3  ERR  6552 ms  search_files:ok read_file:error terminal:skipped  (step 2 (read_file): step 1 result has no field matches.0.path)

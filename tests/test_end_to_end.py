@@ -318,4 +318,5 @@ def test_agent_is_told_about_approved_routines(host):
     host.commands["kata"](f"approve {kid} as triage")
     text = section({})
     assert "kata_triage(pattern): search_files -> read_file -> terminal" in text
+    assert "tool_search" in text  # Hermes may defer plugin tools; tell the agent how to load it
     assert len(text) <= 1500

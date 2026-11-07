@@ -271,7 +271,8 @@ class KataRuntime:
                 return ""
             return ("Approved routines (Kata). The user approved these as single tools. When a task matches one, "
                     "call it once instead of repeating its steps by hand; if it reports a failed step, continue by "
-                    "hand from that step.\n" + "\n".join(lines[:20]))
+                    "hand from that step. If the tool is not in your tool list yet, load it with tool_search first, "
+                    "then call it.\n" + "\n".join(lines[:20]))
         except Exception:
             log.exception("kata: failed to build prompt section")
             return ""

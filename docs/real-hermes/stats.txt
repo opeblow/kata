@@ -1,0 +1,11 @@
+{
+  "events": 25,
+  "katas": {
+    "active": 1,
+    "rejected": 1
+  },
+  "successful_runs": 3,
+  "tool_calls_saved": 6,
+  "model_round_trips_saved": 6.0,
+  "model_tokens_saved": 74739
+}

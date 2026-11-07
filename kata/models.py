@@ -7,6 +7,7 @@ round-trips through JSON so specs can be stored, diffed, versioned and audited.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any, Union
@@ -194,6 +195,25 @@ class ParamSpec:
     examples: list[Any] = field(default_factory=list)
 
 
+def _param_schema(p: ParamSpec) -> dict:
+    """JSON Schema for one input. Recorded values show the agent exactly what to pass, so it
+    sends just the variable part (e.g. "alice") rather than a whole search pattern."""
+    out: dict[str, Any] = {"type": p.type, "description": p.description}
+    examples = []
+    for raw in p.examples[:3]:  # stored JSON-encoded by the miner
+        try:
+            value = json.loads(raw) if isinstance(raw, str) else raw
+        except ValueError:
+            continue
+        if isinstance(value, (str, int, float, bool)):
+            examples.append(value)
+    if examples:
+        shown = ", ".join(json.dumps(e) for e in examples)
+        out["description"] = f"{p.description} Pass only the value itself, as in past runs: {shown}."
+        out["examples"] = examples
+    return out
+
+
 @dataclass
 class StepSpec:
     tool: str
@@ -237,9 +257,7 @@ class KataSpec:
     def input_schema(self) -> dict:
         return {
             "type": "object",
-            "properties": {
-                p.name: {"type": p.type, "description": p.description} for p in self.params
-            },
+            "properties": {p.name: _param_schema(p) for p in self.params},
             "required": [p.name for p in self.params],
             "additionalProperties": False,
         }

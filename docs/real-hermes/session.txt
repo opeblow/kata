@@ -1,0 +1,12 @@
+❯ find the TODO for alice in src and count the lines of that file
+
+⚡ Kata_triage_todo  5.6s
+
+☤ Hermes
+The TODO for alice is in src/billing_alice.py, line 5:
+
+# TODO(alice): reject invoices with a negative total
+
+That file has 6 lines.
+
+─ 12.5s · called 1 tool · 10:15 AM

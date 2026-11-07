@@ -278,6 +278,18 @@ shortened to `./kata`). The raw text is in [`docs/real-hermes/`](docs/real-herme
 
 <p align="center"><sub><b>Approved and active.</b> After <code>hermes kata approve 1 as triage_todo</code>, the tool is registered in new Hermes sessions (Hermes's log: <code>kata: registered kata_triage_todo</code>).</sub></p>
 
+<br>
+
+<img src="docs/screenshots/real-hermes-run.png" alt="A new Hermes session with claude-sonnet-5-5: the agent answers with one kata_triage_todo call; /kata runs shows three successful runs of search_files, read_file and terminal">
+
+<p align="center"><sub><b>The learned tool doing the job in a new session.</b> Same request, now answered with <b>one tool call</b> (<code>kata_triage_todo</code>, 5.6 s) instead of three model round trips. <code>/kata runs</code> shows every step of three consecutive successful runs. The failed run at the bottom is the input bug listed below, kept unedited: Kata stopped at the failing step, skipped the rest and handed control back to the agent.</sub></p>
+
+<br>
+
+<img src="docs/screenshots/real-hermes-stats.png" alt="hermes kata stats: 3 successful runs, 6 tool calls saved, 6 model round trips saved, 74,739 model tokens saved">
+
+<p align="center"><sub><b>Savings measured, not estimated.</b> After three real runs: <b>6 tool calls</b>, <b>6 model round trips</b> and <b>74,739 model tokens</b> saved, from Kata's own measurements of doing the task by hand.</sub></p>
+
 ### What real testing caught
 
 Running against a real Hermes and a real model exposed problems no simulation did. Each was fixed, given a regression
@@ -291,6 +303,8 @@ test built from the recorded data, and re-verified in Hermes:
 | `hermes kata approve` runs where Hermes's tools are not loaded, so tools looked missing | Tool checks are deferred to the agent process, which records tool schemas on start |
 | Background mining ran while another conversation was mid-routine and proposed a fragment | Only finished turns are mined |
 | A `chr()` string helper made the security scan report **caution** | Replaced with plain strings; a test now forbids it |
+| Hermes 0.23 hides plugin tools behind `tool_search`, so the model did the task by hand instead of loading the kata | The routines prompt tells the agent to load the kata first; for best results set `tools.tool_search.enabled: "off"` (see Quick start) |
+| With no example in its input schema, the model passed a whole regex (`TODO.*alice\|alice.*TODO`) where the kata wanted `alice` | The input schema now shows recorded values (`"alice"`, `"bob"`, `"carol"`), and the agent passes just the value |
 
 When a compiled run hit the escaping bug in a live session, Kata stopped at the failing step, skipped the rest, recorded
 the error, and returned control to the agent: the safety path worked as designed before the root cause was fixed.
@@ -329,6 +343,16 @@ conversations, then proposes it when the session ends.
 
 Hermes builds each session's tool list when the session starts, so the agent can call a newly approved kata from your
 next session. You can also open the **Kata** tab in `hermes dashboard`.
+
+Hermes 0.23 hides plugin tools behind `tool_search` by default, and models often skip loading them for short tasks. To
+keep approved katas directly callable, add this to your Hermes `config.yaml` and restart Hermes (and the gateway, if it
+is running, with `hermes gateway restart`):
+
+```yaml
+tools:
+  tool_search:
+    enabled: "off"
+```
 
 To install from source at a pinned commit before the catalog listing is merged:
 
