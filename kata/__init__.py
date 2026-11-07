@@ -25,9 +25,10 @@ def open_store():
         return Store.open_path(Path(override))
     try:
         from plugins.plugin_storage import plugin_db
-        return Store(plugin_db("kata", "kata.db"))
     except ImportError:  # running outside Hermes (tests, scripts)
         return Store.open_path(Path.home() / ".hermes" / "plugin-data" / "kata" / "kata.db")
+    # Opened on first use, so loading the plugin never creates or locks files.
+    return Store.lazy(lambda: plugin_db("kata", "kata.db"))
 
 
 def register(ctx: Any) -> None:
@@ -56,5 +57,6 @@ def install(ctx: Any, store: Any, fingerprint: Any = None) -> Any:
                                  commands.make_cli_handler(lambda: rt.service))
     except Exception:  # older hosts without CLI registration
         log.debug("kata: CLI command not registered", exc_info=True)
-    rt.sync()
+    rt.sync()        # register approved katas before Hermes snapshots the session's tools
+    store.release()  # then let go of the file; it reopens on first use
     return rt
