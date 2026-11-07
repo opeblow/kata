@@ -20,7 +20,7 @@ from typing import Any
 from .card import show_expr
 from .executor import Executor
 from .miner import MinerConfig
-from .models import Effect, KataSpec, Status
+from .models import TOOLS_NOT_LOADED, Effect, KataSpec, Status
 from .redact import redact, redact_text
 from .service import KataService
 from .store import Store
@@ -31,14 +31,20 @@ MAX_RESULT_CHARS = 64_000
 TOOLSET = "kata"
 
 
+_CORE_TOOLS = ("read_file", "terminal", "search_files", "write_file")
+
+
 def schema_fingerprint(tool: str) -> str | None:
-    """sha256 of a tool's current schema, or ``None`` when the tool is not registered."""
+    """sha256 of a tool's current schema; ``None`` when the tool is not registered; or
+    ``TOOLS_NOT_LOADED`` when this process never loaded Hermes's tools (CLI, dashboard)."""
     try:
         from tools.registry import registry
     except Exception:
-        return None
+        return TOOLS_NOT_LOADED
     schema = registry.get_schema(tool)
     if schema is None:
+        if not any(registry.get_schema(t) is not None for t in _CORE_TOOLS):
+            return TOOLS_NOT_LOADED
         return None
     return hashlib.sha256(json.dumps(schema, sort_keys=True, default=str).encode()).hexdigest()[:20]
 
@@ -155,6 +161,8 @@ class KataRuntime:
     def _drift_reason(self, spec: KataSpec) -> str | None:
         for s in spec.steps:
             fp = self.fingerprint(s.tool)
+            if fp == TOOLS_NOT_LOADED:
+                continue
             if fp is None:
                 return f"tool `{s.tool}` is no longer available"
             if s.schema_fingerprint and fp != s.schema_fingerprint:
@@ -175,6 +183,7 @@ class KataRuntime:
                 if reason:
                     self.store.set_status(k["id"], Status.STALE, actor="kata", reason=reason)
                     continue
+                self._pin_fingerprints(k["id"], version, spec)
                 wanted[spec.name] = (k["id"], version, spec)
             self._generation = self.store.generation()
             for name in list(self._registered):
@@ -191,6 +200,17 @@ class KataRuntime:
                     description=f"Kata v{ver}: {spec.description}")
                 self._registered[name] = (kid, ver, handle)
                 log.info("kata: registered %s v%s", name, ver)
+
+    def _pin_fingerprints(self, kata_id: int, version: int, spec: KataSpec) -> None:
+        """Record tool schemas for katas approved where tools were not loaded (CLI, dashboard)."""
+        changed = False
+        for s in spec.steps:
+            fp = self.fingerprint(s.tool)
+            if not s.schema_fingerprint and fp and fp != TOOLS_NOT_LOADED:
+                s.schema_fingerprint, changed = fp, True
+        if changed:
+            self.store.update_version_spec(kata_id, version, spec.to_json())
+            self.store.audit(kata_id, "pinned", "kata", f"tool schemas recorded for v{version}")
 
     @staticmethod
     def _dispose(handle: Any) -> None:
