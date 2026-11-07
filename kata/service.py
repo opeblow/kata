@@ -140,7 +140,7 @@ class KataService:
                     continue
                 self.store.add_candidate(spec, validation.to_json())
                 report.proposed.append(spec.name)
-            elif existing["status"] == Status.STALE.value:
+            elif existing["status"] in (Status.STALE.value, Status.SUSPENDED.value):
                 # A stale kata is revised only from what the agent did after the approved version.
                 report.pending.append(existing["name"])
                 if self._revise_from_recent(existing, events):
