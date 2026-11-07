@@ -14,7 +14,7 @@ Nothing activates without you.
 <br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/opeblow/kata/ci.yml?branch=main&label=CI&style=flat-square&labelColor=1a1814)](https://github.com/opeblow/kata/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-48%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
+[![Tests](https://img.shields.io/badge/tests-50%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
 [![Coverage](https://img.shields.io/badge/coverage-89%25-3f7a52?style=flat-square&labelColor=1a1814)](.github/workflows/ci.yml)
 [![hermes plugins validate](https://img.shields.io/badge/hermes%20plugins%20validate-passed-3f7a52?style=flat-square&labelColor=1a1814)](#validated-in-real-hermes)
 [![Security scan](https://img.shields.io/badge/hermes%20security%20scan-safe-3f7a52?style=flat-square&labelColor=1a1814)](#validated-in-real-hermes)
@@ -63,6 +63,8 @@ Nothing activates without you.
 - [Validation: twelve checks before anything runs](#validation-twelve-checks-before-anything-runs)
 - [Safety model](#safety-model)
 - [Validated in real Hermes](#validated-in-real-hermes)
+  - [Verification summary: every test we ran](#verification-summary-every-test-we-ran)
+  - [What real testing caught](#what-real-testing-caught)
 - [Built for production](#built-for-production)
 - [Quick start](#quick-start)
 - [Verify it yourself in 30 seconds](#verify-it-yourself-in-30-seconds)
@@ -269,6 +271,24 @@ Read the full threat model in [SECURITY.md](SECURITY.md) and data handling in [P
 Kata was installed from this repository into **Hermes Agent v0.23.0** on Windows and exercised with a real model, the
 same way a user would run it. Everything below is unedited output from that machine (only the local folder path is
 shortened to `./kata`). The raw text is in [`docs/real-hermes/`](docs/real-hermes).
+
+### Verification summary: every test we ran
+
+| # | What was tested | How | Result | Evidence |
+|---|---|---|---|---|
+| 1 | Hermes version | `hermes --version` | **Hermes Agent v0.23.0** (stable) | [`version.txt`](docs/real-hermes/version.txt) |
+| 2 | Hermes's own catalog checks | `hermes plugins validate ./kata` | **15 / 15 checks passed**, security scan **safe**, no core override | [`validate.txt`](docs/real-hermes/validate.txt) |
+| 3 | Plugin loads in Hermes | `hermes plugins doctor ./kata --ci` | **OK**: discovery, import and registration (1 tool, 6 hooks) | [`doctor.txt`](docs/real-hermes/doctor.txt) |
+| 4 | Learns from real use | The agent did one task by hand in **3 separate sessions**, then `hermes kata review 1` | Routine detected, input and data flow inferred, **12 / 12 validation checks passed** | [`review.txt`](docs/real-hermes/review.txt) |
+| 5 | Approval registers the tool | `hermes kata approve 1 as triage_todo` | `kata_triage_todo` **active (v3)** | [`list.txt`](docs/real-hermes/list.txt) |
+| 6 | The learned tool does the job | New session with claude-sonnet-5-5, same request | **1 tool call** instead of 3, correct answer, 12.5 s total | [`session.txt`](docs/real-hermes/session.txt) |
+| 7 | It works every time | `/kata runs kata_triage_todo` | **3 successful runs in a row**, all 3 steps ok, ~5.6 s each | [`runs.txt`](docs/real-hermes/runs.txt) |
+| 8 | Failure is handled safely | A run with a bad input (before the fix below) | Stopped at the failing step, skipped the rest, returned control to the agent | [`runs.txt`](docs/real-hermes/runs.txt) (10:08 row) |
+| 9 | Savings are measured | `hermes kata stats` | **6 tool calls, 6 model round-trips and 74,739 tokens saved** | [`stats.txt`](docs/real-hermes/stats.txt) |
+| 10 | Automated test suite | `pytest` with coverage, `ruff check` | **50 tests passing**, 89% coverage, lint clean | [`tests/`](tests) |
+| 11 | Cross-platform CI | GitHub Actions | Linux, macOS and Windows on Python 3.11, 3.12 and 3.13 | [`ci.yml`](.github/workflows/ci.yml) |
+| 12 | End-to-end demo without a model | `python scripts/demo.py` | Learns, proposes, approves and runs the tool | [`demo-output.txt`](docs/demo-output.txt) |
+| 13 | Demo video | Recorded from the runs above | Real sessions, real dashboard, real numbers | [YouTube](https://youtu.be/nMTOGmmoCq8) |
 
 <img src="docs/screenshots/real-hermes-validate.png" alt="hermes plugins validate: every check passes, security scan safe; hermes plugins doctor: OK">
 
