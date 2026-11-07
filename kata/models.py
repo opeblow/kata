@@ -13,6 +13,10 @@ from typing import Any, Union
 
 SPEC_VERSION = 1
 
+# Fingerprint value meaning "this process has not loaded Hermes's tools", as in the
+# `hermes kata` CLI or the dashboard backend. Distinct from None, which means "tool missing".
+TOOLS_NOT_LOADED = "~not-loaded"
+
 
 class Effect(StrEnum):
     """How much a step can change the world. Ordered from safest to riskiest."""
