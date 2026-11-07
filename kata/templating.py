@@ -19,7 +19,9 @@ from typing import Any
 
 from .models import Arr, Concat, Const, Expr, Obj, Param, ParamSpec, Ref
 
-_TOKEN_SPLIT = re.compile(r"(\s+|[/=:,@#?&()\[\]{}\"'.\-])")
+# Separators that are structure, never part of an input: whitespace, punctuation, path separators
+# and the escape character, so a regex-escaped "TODO\(alice\)" yields the input "alice".
+_TOKEN_SPLIT = re.compile(r"(\s+|[/\\=:,@#?&()\[\]{}\"'.\-])")
 _MAX_LEAVES = 4000
 _MISSING = object()
 
@@ -101,6 +103,8 @@ def _fmt_for(leaves: list, written: list) -> str:
 
 
 def json_type(values: list[Any]) -> str:
+    if all(v is None for v in values):
+        return "null"
     if all(isinstance(v, bool) for v in values):
         return "boolean"
     if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
