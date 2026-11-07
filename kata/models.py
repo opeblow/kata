@@ -62,6 +62,7 @@ class Ref:
 
     step: int
     path: tuple[str | int, ...]
+    fmt: str = ""          # "posix": render path separators as "/" (how the agent wrote them)
     kind: str = "ref"
 
 
@@ -94,7 +95,10 @@ def expr_to_json(e: Expr) -> dict:
     if isinstance(e, Param):
         return {"kind": "param", "name": e.name}
     if isinstance(e, Ref):
-        return {"kind": "ref", "step": e.step, "path": list(e.path)}
+        d = {"kind": "ref", "step": e.step, "path": list(e.path)}
+        if e.fmt:
+            d["fmt"] = e.fmt
+        return d
     if isinstance(e, Concat):
         return {"kind": "concat", "parts": [expr_to_json(p) for p in e.parts]}
     if isinstance(e, Obj):
@@ -111,7 +115,7 @@ def expr_from_json(d: dict) -> Expr:
     if kind == "param":
         return Param(str(d["name"]))
     if kind == "ref":
-        return Ref(int(d["step"]), tuple(d.get("path") or ()))
+        return Ref(int(d["step"]), tuple(d.get("path") or ()), str(d.get("fmt") or ""))
     if kind == "concat":
         return Concat(tuple(expr_from_json(p) for p in d["parts"]))
     if kind == "obj":
