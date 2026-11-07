@@ -254,6 +254,28 @@ class KataRuntime:
         handler.__name__ = f"kata_handler_{kata_id}_v{version}"
         return handler
 
+    # -- system prompt: tell the agent which approved routines it has -----------
+    def prompt_section(self, _info: Any = None) -> str:
+        """Short list of active katas, frozen into each new session's prompt."""
+        try:
+            lines = []
+            for k in self.store.katas(Status.ACTIVE.value):
+                found = self.service.active_spec(k["id"])
+                if not found:
+                    continue
+                spec, _ = found
+                args = ", ".join(p.name for p in spec.params)
+                steps = " -> ".join(s.tool for s in spec.steps)
+                lines.append(f"- {spec.name}({args}): {steps}")
+            if not lines:
+                return ""
+            return ("Approved routines (Kata). The user approved these as single tools. When a task matches one, "
+                    "call it once instead of repeating its steps by hand; if it reports a failed step, continue by "
+                    "hand from that step." + chr(10) + chr(10).join(lines[:20]))
+        except Exception:
+            log.exception("kata: failed to build prompt section")
+            return ""
+
     # -- read-only listing tool for the agent ----------------------------------
     def kata_list_handler(self, args: dict, **_: Any) -> str:
         try:
