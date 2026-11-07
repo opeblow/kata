@@ -306,3 +306,16 @@ def test_approval_from_a_process_without_tools_pins_schemas_in_the_agent(host):
     spec, _ = rt.service.active_spec(kid)
     assert all(s.schema_fingerprint for s in spec.steps)
     assert any(a["action"] == "pinned" for a in rt.store.audit_log(kid))
+
+
+def test_agent_is_told_about_approved_routines(host):
+    section = host.prompt_sections["kata.routines"]
+    assert section({}) == ""  # nothing approved yet: no prompt text at all
+    for u in USERS[:3]:
+        triage_by_hand(host, u)
+    kid = host.runtime.store.katas()[0]["id"]
+    assert section({}) == ""  # proposals are not advertised before approval
+    host.commands["kata"](f"approve {kid} as triage")
+    text = section({})
+    assert "kata_triage(pattern): search_files -> read_file -> terminal" in text
+    assert len(text) <= 1500
