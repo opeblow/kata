@@ -67,8 +67,8 @@ def _leaves(node: Any, prefix: tuple = ()) -> Iterator[tuple[tuple, Any]]:
             yield path, cur
 
 
-_BACKSLASH = chr(92)
-BS_CLASS = _BACKSLASH * 2  # a backslash inside a regex character class
+_BACKSLASH = "\\"
+BS_CLASS = "\\\\"  # a backslash inside a regex character class
 
 
 def _posix(s: str) -> str:
