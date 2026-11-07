@@ -14,7 +14,7 @@ from collections.abc import Callable
 from .effects import compilable
 from .executor import Executor, validate_inputs
 from .miner import fits
-from .models import CheckResult, Effect, KataSpec, ToolEvent, ValidationReport
+from .models import TOOLS_NOT_LOADED, CheckResult, Effect, KataSpec, ToolEvent, ValidationReport
 from .redact import REDACTED, looks_secret
 from .templating import RenderError, normalized, parse_result, render
 
@@ -164,15 +164,18 @@ def validate(spec: KataSpec, examples: list[list[ToolEvent]], *,
 
     # 11. Tools exist today and match what was recorded.
     if fingerprint is not None:
-        missing, changed = [], []
+        missing, changed, unknown = [], [], []
         for s in spec.steps:
             fp = fingerprint(s.tool)
-            if fp is None:
+            if fp == TOOLS_NOT_LOADED:
+                unknown.append(s.tool)
+            elif fp is None:
                 missing.append(s.tool)
             elif s.schema_fingerprint and fp != s.schema_fingerprint:
                 changed.append(s.tool)
         ok = not missing and not changed
-        detail = "all tools available, schemas unchanged" if ok else \
+        detail = ("tools are not loaded in this process; checked again when the agent starts"
+                  if ok and unknown else "all tools available, schemas unchanged") if ok else \
             "; ".join(x for x in (f"missing: {', '.join(missing)}" if missing else "",
                                   f"schema changed: {', '.join(changed)}" if changed else "") if x)
         checks.append(CheckResult("tools_available", ok, detail))
