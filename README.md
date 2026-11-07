@@ -32,7 +32,15 @@ Nothing activates without you.
 
 <br>
 
-[**Website**](site/index.html) &nbsp;&middot;&nbsp; [**Documentation**](site/docs.html) &nbsp;&middot;&nbsp; [**Quick start**](#quick-start) &nbsp;&middot;&nbsp; [**Security**](SECURITY.md) &nbsp;&middot;&nbsp; [**Privacy**](PRIVACY.md)
+[**Demo video**](https://youtu.be/nMTOGmmoCq8) &nbsp;&middot;&nbsp; [**Website**](site/index.html) &nbsp;&middot;&nbsp; [**Documentation**](site/docs.html) &nbsp;&middot;&nbsp; [**Quick start**](#quick-start) &nbsp;&middot;&nbsp; [**Security**](SECURITY.md) &nbsp;&middot;&nbsp; [**Privacy**](PRIVACY.md)
+
+<br><br>
+
+<a href="https://youtu.be/nMTOGmmoCq8" title="Watch the Kata demo on YouTube">
+  <img src="https://img.youtube.com/vi/nMTOGmmoCq8/maxresdefault.jpg" width="720" alt="Kata demo video: real Hermes sessions, the review dashboard, approval, and the learned tool running in one call. Click to watch on YouTube.">
+</a>
+
+<sub><b>Watch the 86-second demo.</b> Everything in it is real: Hermes sessions, the Kata dashboard and measured savings.</sub>
 
 </div>
 
