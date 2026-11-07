@@ -50,6 +50,12 @@ def install(ctx: Any, store: Any, fingerprint: Any = None) -> Any:
     ctx.register_hook("on_session_end", rt.on_session_end)
     ctx.register_tool(name="kata_list", toolset="kata", schema=KATA_LIST_SCHEMA, handler=rt.kata_list_handler,
                       description="List approved katas and pending candidates.")
+    if hasattr(ctx, "register_system_prompt_section"):
+        try:
+            ctx.register_system_prompt_section("kata.routines", rt.prompt_section, position="after_memory",
+                                               max_chars=1500)
+        except Exception:  # never block loading over an optional hint
+            log.debug("kata: system prompt section not registered", exc_info=True)
     ctx.register_command("kata", lambda raw="": commands.handle(rt.service, raw, rt.sync),
                          description="Review, approve and manage compiled routines", args_hint="[subcommand]")
     try:
