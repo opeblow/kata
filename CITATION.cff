@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use Kata in your work, please cite it as below."
+title: "Kata: compile the routines your agent repeats into approved, deterministic tools"
+type: software
+authors:
+  - alias: opeblow
+repository-code: "https://github.com/opeblow/kata"
+url: "https://opeblow.github.io/kata/"
+license: MIT
+version: 0.1.0
+date-released: 2026-11-07
+keywords:
+  - agents
+  - tool use
+  - hermes-agent
+  - workflow compilation
+  - human in the loop

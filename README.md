@@ -32,7 +32,7 @@ Nothing activates without you.
 
 <br>
 
-[**Demo video**](https://youtu.be/nMTOGmmoCq8) &nbsp;&middot;&nbsp; [**Website**](site/index.html) &nbsp;&middot;&nbsp; [**Documentation**](site/docs.html) &nbsp;&middot;&nbsp; [**Quick start**](#quick-start) &nbsp;&middot;&nbsp; [**Security**](SECURITY.md) &nbsp;&middot;&nbsp; [**Privacy**](PRIVACY.md)
+[**Demo video**](https://youtu.be/nMTOGmmoCq8) &nbsp;&middot;&nbsp; [**Website**](https://opeblow.github.io/kata/) &nbsp;&middot;&nbsp; [**Documentation**](https://opeblow.github.io/kata/docs.html) &nbsp;&middot;&nbsp; [**Quick start**](#quick-start) &nbsp;&middot;&nbsp; [**Security**](SECURITY.md) &nbsp;&middot;&nbsp; [**Privacy**](PRIVACY.md) &nbsp;&middot;&nbsp; [**Changelog**](CHANGELOG.md)
 
 <br><br>
 
