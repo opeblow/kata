@@ -1,0 +1,4 @@
+Plugin Doctor: ./kata
+  manifest: kata 0.1.0 (standalone)
+  OK: runtime discovery, manifest parsing, import, and registration passed
+  registrations: 1 tool(s), 6 hook(s)
