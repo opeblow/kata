@@ -1,0 +1,71 @@
+## kata_triage_todo  (active, v3)
+
+Routine observed in 3 separate conversations: `search_files`, then `read_file`, then `terminal`.
+
+### Why Kata proposed this
+- Seen in 3 separate conversations (3 matching runs)
+- Held-out fit 100%, confidence 0.78
+- By hand it took 3 tool calls, 2.0 model round-trips, ~24913 tokens, 15231 ms
+
+### Steps (executed in this order, no model calls in between)
+1. `search_files`(path="src", pattern="TODO\\({pattern}\\)")  [read: `search_files` only reads]
+2. `read_file`(path=<step 1.matches.0.path>)  [read: `read_file` only reads]
+3. `terminal`(command="wc -l <step 1.matches.0.path>")  [read: `wc` only reads]
+
+### Permissions
+- May call only: read_file, search_files, terminal
+- Highest effect: read
+- Read-only or local steps; read-only steps may be retried once on error
+
+### Input schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "pattern": {
+      "type": "string",
+      "description": "Variable part of `pattern` in step 1."
+    }
+  },
+  "required": [
+    "pattern"
+  ],
+  "additionalProperties": false
+}
+```
+### Output schema
+```json
+{
+  "type": "object",
+  "properties": {
+    "error": {
+      "type": "null"
+    },
+    "exit_code": {
+      "type": "integer"
+    },
+    "output": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "exit_code",
+    "output"
+  ]
+}
+```
+### Validation (passed)
+- [x] compilable_tools: all steps use compilable tools
+- [x] recorded_examples: 3 recorded example(s) available
+- [x] replay_matches_recorded: 3/3 examples reproduced exactly
+- [x] holdout_fit: held-out fit 100% (minimum 90%)
+- [x] input_schema: schema accepts recorded inputs and rejects missing ones
+- [x] executor_replay: executor reproduced 3 recorded run(s) call-for-call
+- [x] failure_handling: injected failure at step 2 stopped the run; later steps skipped
+- [x] timeout_handling: a hung step times out, is not re-issued, and stops the run
+- [x] output_schema: recorded results match the output schema
+- [x] no_secrets: no credentials embedded
+- [x] tools_available: tools are not loaded in this process; checked again when the agent starts
+- [x] side_effects: read/local only; runs without extra prompts
+
+Approve with `/kata approve 1` (optionally `as <name>`), or `/kata reject 1`.
