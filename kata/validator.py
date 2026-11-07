@@ -16,7 +16,7 @@ from .executor import Executor, validate_inputs
 from .miner import fits
 from .models import CheckResult, Effect, KataSpec, ToolEvent, ValidationReport
 from .redact import REDACTED, looks_secret
-from .templating import RenderError, parse_result, render
+from .templating import RenderError, normalized, parse_result, render
 
 
 class _Replay:
@@ -87,7 +87,7 @@ def validate(spec: KataSpec, examples: list[list[ToolEvent]], *,
             except RenderError as e:
                 mismatches.append(f"example {n + 1} step {i + 1}: {e}")
                 break
-            if json.dumps(rendered, sort_keys=True) != json.dumps(ev.args, sort_keys=True):
+            if json.dumps(normalized(rendered), sort_keys=True) != json.dumps(normalized(ev.args), sort_keys=True):
                 mismatches.append(f"example {n + 1} step {i + 1}: rendered arguments differ from recorded")
                 break
             results.append(parse_result(ev.result))
@@ -121,8 +121,8 @@ def validate(spec: KataSpec, examples: list[list[ToolEvent]], *,
         stub = _Replay(ex)
         run = Executor(stub, step_timeout_s=5, read_retries=0).run(spec, 0, inputs)
         expected = [(e.tool_name, e.args) for e in ex]
-        same_calls = [(t, json.dumps(a, sort_keys=True)) for t, a in stub.calls] == \
-                     [(t, json.dumps(a, sort_keys=True)) for t, a in expected]
+        same_calls = [(t, json.dumps(normalized(a), sort_keys=True)) for t, a in stub.calls] == \
+                     [(t, json.dumps(normalized(a), sort_keys=True)) for t, a in expected]
         if not (run.ok and same_calls):
             exec_ok, exec_detail = False, f"executor diverged: {run.error or 'different call sequence'}"
             break
