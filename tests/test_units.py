@@ -162,3 +162,35 @@ def test_validator_passes_good_and_fails_broken_template():
     report = validate(spec, occ)
     assert not report.passed
     assert any(c.name == "replay_matches_recorded" and not c.passed for c in report.checks)
+
+
+def test_real_windows_paths_from_a_live_hermes_session():
+    """Recorded from Hermes v0.23.0 on Windows: search_files returns backslash paths, and the
+    model sometimes rewrote them with forward slashes and sometimes copied them verbatim."""
+    bs = chr(92)
+    events, i = [], 0
+    for conv, (user, read_path) in enumerate([("alice", "src/billing_alice.py"), ("bob", "src/billing_bob.py"),
+                                              ("carol", f"src{bs}billing_carol.py")]):
+        hit = f"src{bs}billing_{user}.py"
+        steps = [
+            ("search_files", {"path": "src", "pattern": f"TODO{bs}({user}{bs})"},
+             {"total_count": 1, "matches": [{"path": hit, "line": 5, "content": f"# TODO({user})"}]}),
+            ("read_file", {"path": read_path}, {"content": "1|...", "path": read_path}),
+            ("terminal", {"command": f"wc -l src/billing_{user}.py"},
+             {"output": f"6 src/billing_{user}.py", "exit_code": 0, "error": None}),
+        ]
+        for tool, args, res in steps:
+            i += 1
+            events.append(ev(i, f"c{conv}", f"t{conv}", tool, args, res))
+    specs, rejected = mine(events, MinerConfig(min_support=3))
+    assert len(specs) == 1, rejected
+    spec = specs[0]
+    assert spec.evidence.fit_rate == 1.0
+    read_arg = expr_to_json(spec.steps[1].args)["fields"]["path"]
+    assert read_arg["kind"] == "ref" and read_arg.get("fmt") == "posix"
+    occ = [events[k:k + 3] for k in (0, 3, 6)]
+    assert validate(spec, occ).passed
+    # Replayed on a new user, the shell command gets forward slashes, as the agent wrote it.
+    results = [{"matches": [{"path": f"src{bs}billing_dave.py"}]}, {"path": "src/billing_dave.py"}]
+    from kata.templating import render
+    assert render(spec.steps[2].args, {"pattern": "dave"}, results)["command"] == "wc -l src/billing_dave.py"
