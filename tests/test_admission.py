@@ -31,7 +31,8 @@ HERMES_TOP_LEVEL = {"agent", "hermes_cli", "tools", "plugins", "gateway", "model
 # Terms the install-time scanner (tools/plugin_guard + skills_guard) rates high or critical
 # in code. Kata's own source must not contain them, even inside lists or regexes.
 SCANNER_TERMS = [r"\bmkfs\b", r"\bprintenv\b", r"\bsudo\b", r"curl\s.*\|\s*(ba)?sh",
-                 r"\bos\.system\b", r"\beval\(", r"\bexec\(", r"\bsubprocess\b", r"base64\.b64decode"]
+                 r"\bos\.system\b", r"\beval\(", r"\bexec\(", r"\bsubprocess\b", r"base64\.b64decode",
+                 r"\bchr\("]  # chr() string building is rated as obfuscation (chr_building)
 
 
 def _manifest() -> dict:
