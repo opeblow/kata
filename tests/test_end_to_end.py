@@ -283,3 +283,26 @@ def test_host_accepts_an_aliased_sandbox_path(sandbox):
     host = FakeHermes(sandbox=aliased)
     out = json.loads(host.dispatch_tool("search_files", {"pattern": "TODO(alice)", "path": "src"}))
     assert out["matches"][0]["path"] == "src/module_alice.py"
+
+
+def test_approval_from_a_process_without_tools_pins_schemas_in_the_agent(host):
+    """`hermes kata approve` and the dashboard run where Hermes's tools are not loaded."""
+    from kata.models import TOOLS_NOT_LOADED
+    from kata.service import KataService
+    for u in USERS[:3]:
+        triage_by_hand(host, u)
+    rt = host.runtime
+    cli = KataService(rt.store, rt.service.cfg, fingerprint=lambda tool: TOOLS_NOT_LOADED)
+    kid = rt.store.katas()[0]["id"]
+    spec, version, _ = rt.service.spec(kid)  # as if proposed where tools are not loaded: no schemas yet
+    for step in spec.steps:
+        step.schema_fingerprint = ""
+    rt.store.update_version_spec(kid, version, spec.to_json())
+    res = cli.approve(kid, name="triage")
+    checks = {c["name"]: c for c in res["validation"]["checks"]}
+    assert checks["tools_available"]["passed"] and "not loaded" in checks["tools_available"]["detail"]
+    rt.sync()  # the agent process, with tools loaded
+    assert "kata_triage" in host.tools
+    spec, _ = rt.service.active_spec(kid)
+    assert all(s.schema_fingerprint for s in spec.steps)
+    assert any(a["action"] == "pinned" for a in rt.store.audit_log(kid))
