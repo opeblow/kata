@@ -24,7 +24,7 @@ from .miner import (
     occurrences_for,
     settled,
 )
-from .models import Effect, KataSpec, Status, ToolEvent
+from .models import TOOLS_NOT_LOADED, Effect, KataSpec, Status, ToolEvent
 from .store import Store
 from .validator import validate
 
@@ -136,7 +136,7 @@ class KataService:
                 validation = validate(spec, self.examples_from(events, spec), fingerprint=self.fingerprint)
                 if not validation.passed:
                     failed = [c.name for c in validation.checks if not c.passed]
-                    report.rejected.append({"tools": spec.tools, "reason": f"failed validation: {', '.join(failed)}"})
+                    report.rejected.append({"tools": [s.tool for s in spec.steps], "reason": f"failed validation: {', '.join(failed)}"})
                     continue
                 self.store.add_candidate(spec, validation.to_json())
                 report.proposed.append(spec.name)
@@ -224,7 +224,7 @@ class KataService:
         changed = False
         if self.fingerprint:
             for s in spec.steps:
-                if not s.schema_fingerprint and (fp := self.fingerprint(s.tool)):
+                if not s.schema_fingerprint and (fp := self.fingerprint(s.tool)) and fp != TOOLS_NOT_LOADED:
                     s.schema_fingerprint, changed = fp, True
         report = validate(spec, self.examples(spec), fingerprint=self.fingerprint)
         if not report.passed:
