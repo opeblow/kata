@@ -1,0 +1,2 @@
+id  status     name                                  steps  support  confidence
+1   active     kata_triage_todo                      3      3        0.78
