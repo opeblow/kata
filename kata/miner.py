@@ -205,7 +205,7 @@ def _output_schema(occ: list[list[ToolEvent]]) -> dict:
                 "properties": {k: {"type": json_type([f[k] for f in finals]) if not isinstance(finals[0][k], (dict, list))
                                    else ("object" if isinstance(finals[0][k], dict) else "array")}
                                for k in sorted(keys)},
-                "required": sorted(keys)}
+                "required": sorted(k for k in keys if all(f[k] is not None for f in finals))}
     if all(isinstance(f, list) for f in finals):
         return {"type": "array"}
     return {"type": "string"}
