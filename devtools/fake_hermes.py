@@ -44,6 +44,7 @@ class FakeHermes:
     tools: dict[str, dict] = field(default_factory=dict)
     hooks: dict[str, list[Callable]] = field(default_factory=dict)
     commands: dict[str, Callable] = field(default_factory=dict)
+    prompt_sections: dict[str, Any] = field(default_factory=dict)
     approvals: list[str] = field(default_factory=list)
     approve_all: bool = True
     tool_calls: int = 0
@@ -64,6 +65,9 @@ class FakeHermes:
 
     def register_hook(self, name: str, cb: Callable, **_: Any) -> None:
         self.hooks.setdefault(name, []).append(cb)
+
+    def register_system_prompt_section(self, id: str, content: Any, **_: Any) -> None:
+        self.prompt_sections[id] = content
 
     def register_command(self, name: str, handler: Callable, **_: Any) -> None:
         self.commands[name] = handler
