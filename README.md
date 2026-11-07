@@ -20,6 +20,7 @@ Nothing activates without you.
 [![Security scan](https://img.shields.io/badge/hermes%20security%20scan-safe-3f7a52?style=flat-square&labelColor=1a1814)](#validated-in-real-hermes)
 [![Runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-3f7a52?style=flat-square&labelColor=1a1814)](pyproject.toml)
 <br>
+[![Hermes plugin catalog: pull request #150840](https://img.shields.io/badge/hermes%20plugin%20catalog-PR%20%23150840-c8361d?style=flat-square&labelColor=1a1814)](https://github.com/NousResearch/hermes-agent/pull/150840)
 [![Hermes Agent](https://img.shields.io/badge/hermes%20agent-%E2%89%A50.22.0-c8361d?style=flat-square&labelColor=1a1814)](https://github.com/NousResearch/hermes-agent)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-c8361d?style=flat-square&labelColor=1a1814)](pyproject.toml)
 [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-c8361d?style=flat-square&labelColor=1a1814)](.github/workflows/ci.yml)
@@ -32,7 +33,7 @@ Nothing activates without you.
 
 <br>
 
-[**Demo video**](https://youtu.be/nMTOGmmoCq8) &nbsp;&middot;&nbsp; [**Website**](https://opeblow.github.io/kata/) &nbsp;&middot;&nbsp; [**Documentation**](https://opeblow.github.io/kata/docs.html) &nbsp;&middot;&nbsp; [**Quick start**](#quick-start) &nbsp;&middot;&nbsp; [**Security**](SECURITY.md) &nbsp;&middot;&nbsp; [**Privacy**](PRIVACY.md) &nbsp;&middot;&nbsp; [**Changelog**](CHANGELOG.md)
+[**Demo video**](https://youtu.be/nMTOGmmoCq8) &nbsp;&middot;&nbsp; [**Plugin catalog pull request**](https://github.com/NousResearch/hermes-agent/pull/150840) &nbsp;&middot;&nbsp; [**Website**](https://opeblow.github.io/kata/) &nbsp;&middot;&nbsp; [**Documentation**](https://opeblow.github.io/kata/docs.html) &nbsp;&middot;&nbsp; [**Quick start**](#quick-start) &nbsp;&middot;&nbsp; [**Security**](SECURITY.md) &nbsp;&middot;&nbsp; [**Privacy**](PRIVACY.md) &nbsp;&middot;&nbsp; [**Changelog**](CHANGELOG.md)
 
 <br><br>
 
