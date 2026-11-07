@@ -337,6 +337,11 @@ class Store:
                    (kata_id, version, json.dumps(spec.to_json()), json.dumps(validation), time.time()))
         return version
 
+    def update_version_spec(self, kata_id: int, version: int, spec: dict) -> None:
+        """Metadata-only update of a stored version (tool schema fingerprints)."""
+        self._exec("UPDATE kata_versions SET spec=? WHERE kata_id=? AND version=?",
+                   (json.dumps(spec), kata_id, version))
+
     def versions(self, kata_id: int) -> list[dict]:
         rows = self._query("SELECT version, spec, validation, created_at, approved_at FROM kata_versions"
                            " WHERE kata_id=? ORDER BY version", (kata_id,))
