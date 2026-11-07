@@ -14,9 +14,10 @@ Nothing activates without you.
 <br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/opeblow/kata/ci.yml?branch=main&label=CI&style=flat-square&labelColor=1a1814)](https://github.com/opeblow/kata/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-44%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
+[![Tests](https://img.shields.io/badge/tests-48%20passing-3f7a52?style=flat-square&labelColor=1a1814)](tests)
 [![Coverage](https://img.shields.io/badge/coverage-89%25-3f7a52?style=flat-square&labelColor=1a1814)](.github/workflows/ci.yml)
-[![Security scan](https://img.shields.io/badge/hermes%20security%20scan-0%20findings-3f7a52?style=flat-square&labelColor=1a1814)](SECURITY.md)
+[![hermes plugins validate](https://img.shields.io/badge/hermes%20plugins%20validate-passed-3f7a52?style=flat-square&labelColor=1a1814)](#validated-in-real-hermes)
+[![Security scan](https://img.shields.io/badge/hermes%20security%20scan-safe-3f7a52?style=flat-square&labelColor=1a1814)](#validated-in-real-hermes)
 [![Runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-3f7a52?style=flat-square&labelColor=1a1814)](pyproject.toml)
 <br>
 [![Hermes Agent](https://img.shields.io/badge/hermes%20agent-%E2%89%A50.22.0-c8361d?style=flat-square&labelColor=1a1814)](https://github.com/NousResearch/hermes-agent)
@@ -53,6 +54,7 @@ Nothing activates without you.
 - [Human approval is not optional](#human-approval-is-not-optional)
 - [Validation: twelve checks before anything runs](#validation-twelve-checks-before-anything-runs)
 - [Safety model](#safety-model)
+- [Validated in real Hermes](#validated-in-real-hermes)
 - [Built for production](#built-for-production)
 - [Quick start](#quick-start)
 - [Verify it yourself in 30 seconds](#verify-it-yourself-in-30-seconds)
@@ -253,6 +255,45 @@ a stub dispatcher that replays recorded results.
 | **Local only** | No network requests, no telemetry. One SQLite file in your Hermes profile. |
 
 Read the full threat model in [SECURITY.md](SECURITY.md) and data handling in [PRIVACY.md](PRIVACY.md).
+
+## Validated in real Hermes
+
+Kata was installed from this repository into **Hermes Agent v0.23.0** on Windows and exercised with a real model, the
+same way a user would run it. Everything below is unedited output from that machine (only the local folder path is
+shortened to `./kata`). The raw text is in [`docs/real-hermes/`](docs/real-hermes).
+
+<img src="docs/screenshots/real-hermes-validate.png" alt="hermes plugins validate: every check passes, security scan safe; hermes plugins doctor: OK">
+
+<p align="center"><sub><b>Hermes's own catalog checks.</b> <code>hermes plugins validate</code> passes every check, including the install-time security scan (<b>safe</b>) and the no-core-override check. <code>hermes plugins doctor</code> passes discovery, import and registration.</sub></p>
+
+<br>
+
+<img src="docs/screenshots/real-hermes-proposal.png" alt="hermes kata review 1: a routine learned from three real Hermes sessions, with steps, schemas and twelve passing validation checks">
+
+<p align="center"><sub><b>A tool learned from three real agent sessions.</b> The agent triaged a TODO by hand three times. Kata detected the routine, inferred the input (<code>pattern</code>) and the data flow (the file path comes from step 1's result), passed all twelve checks, and measured the real cost of doing it by hand: <b>~24,900 tokens and ~15 seconds</b> of model work per run.</sub></p>
+
+<br>
+
+<img src="docs/screenshots/real-hermes-active.png" alt="hermes --version shows v0.23.0; hermes kata lists kata_triage_todo as active">
+
+<p align="center"><sub><b>Approved and active.</b> After <code>hermes kata approve 1 as triage_todo</code>, the tool is registered in new Hermes sessions (Hermes's log: <code>kata: registered kata_triage_todo</code>).</sub></p>
+
+### What real testing caught
+
+Running against a real Hermes and a real model exposed problems no simulation did. Each was fixed, given a regression
+test built from the recorded data, and re-verified in Hermes:
+
+| Found in real use | Fix |
+|---|---|
+| On Windows, `search_files` returns `src\file.py` while the model sometimes writes `src/file.py`, hiding the data flow | Values match across path separators; replays use the form the agent wrote |
+| The model searched with a regex-escaped pattern, `TODO\(alice\)`, and the escape leaked into the learned input | Escape characters are treated as fixed structure, so the input is exactly `alice` |
+| Loading the plugin held its database open, which failed `plugins doctor` on Windows | The database opens on first use and is released after loading |
+| `hermes kata approve` runs where Hermes's tools are not loaded, so tools looked missing | Tool checks are deferred to the agent process, which records tool schemas on start |
+| Background mining ran while another conversation was mid-routine and proposed a fragment | Only finished turns are mined |
+| A `chr()` string helper made the security scan report **caution** | Replaced with plain strings; a test now forbids it |
+
+When a compiled run hit the escaping bug in a live session, Kata stopped at the failing step, skipped the rest, recorded
+the error, and returned control to the agent: the safety path worked as designed before the root cause was fixed.
 
 ## Built for production
 
@@ -476,7 +517,7 @@ kata/
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pytest --cov=kata          # 44 tests, 89% coverage
+python -m pytest --cov=kata          # 48 tests, 89% coverage
 ruff check .
 python scripts/demo.py --db /tmp/kata-demo.db
 KATA_DB_PATH=/tmp/kata-demo.db python devtools/preview_server.py   # dashboard at http://127.0.0.1:8765
