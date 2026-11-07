@@ -10,7 +10,7 @@ import json
 import sqlite3
 import threading
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
@@ -119,14 +119,39 @@ class StoreError(Exception):
 
 
 class Store:
-    def __init__(self, conn: sqlite3.Connection):
-        self._conn = conn
+    def __init__(self, conn: sqlite3.Connection | None = None,
+                 factory: Callable[[], sqlite3.Connection] | None = None):
+        """Wrap an open connection, or a ``factory`` that opens one on first use.
+
+        Lazy opening matters inside Hermes: loading the plugin (including Hermes's own
+        validation probes) must not create or lock the database until Kata needs it."""
         self._lock = threading.RLock()
+        self._raw: sqlite3.Connection | None = None
+        self._factory = factory
+        if conn is not None:
+            self._init(conn)
+
+    @classmethod
+    def lazy(cls, factory: Callable[[], sqlite3.Connection]) -> Store:
+        return cls(factory=factory)
+
+    def _init(self, conn: sqlite3.Connection) -> None:
         with self._lock:
-            self._conn.execute("PRAGMA busy_timeout=5000")  # dashboard and agent may write concurrently
-            self._conn.executescript(SCHEMA)
-            self._conn.commit()
+            self._raw = conn
+            conn.execute("PRAGMA busy_timeout=5000")  # dashboard and agent may write concurrently
+            conn.executescript(SCHEMA)
+            conn.commit()
             self._migrate()
+
+    @property
+    def _conn(self) -> sqlite3.Connection:
+        if self._raw is None:
+            with self._lock:
+                if self._raw is None:
+                    if self._factory is None:
+                        raise StoreError("store is closed")
+                    self._init(self._factory())
+        return self._raw
 
     def _migrate(self) -> None:
         rows = self._conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchall()
@@ -155,9 +180,16 @@ class Store:
         conn.execute("PRAGMA foreign_keys=ON")
         return cls(conn)
 
+    def release(self) -> None:
+        """Close the file handle if this store can reopen it on demand (lazy stores only)."""
+        if self._factory is not None:
+            self.close()
+
     def close(self) -> None:
         with self._lock:
-            self._conn.close()
+            if self._raw is not None:
+                self._raw.close()
+                self._raw = None
 
     # -- internals ---------------------------------------------------------
     def _exec(self, sql: str, params: Iterable[Any] = ()) -> sqlite3.Cursor:
