@@ -65,8 +65,39 @@ def _leaves(node: Any, prefix: tuple = ()) -> Iterator[tuple[tuple, Any]]:
             yield path, cur
 
 
+_BACKSLASH = chr(92)
+BS_CLASS = _BACKSLASH * 2  # a backslash inside a regex character class
+
+
+def _posix(s: str) -> str:
+    return s.replace(_BACKSLASH, "/")
+
+
 def _same(a: Any, b: Any) -> bool:
-    return json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str)
+    """Equal values, treating Windows and POSIX path separators in strings as the same."""
+    if json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str):
+        return True
+    return isinstance(a, str) and isinstance(b, str) and _posix(a) == _posix(b)
+
+
+def normalized(value: Any) -> Any:
+    """Separator-insensitive form of a value, for comparing rendered and recorded arguments."""
+    if isinstance(value, str):
+        return _posix(value)
+    if isinstance(value, dict):
+        return {k: normalized(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [normalized(v) for v in value]
+    return value
+
+
+def _fmt_for(leaves: list, written: list) -> str:
+    """'posix' when the agent mostly rewrote backslashes in this value as forward slashes."""
+    pairs = [(lv, w) for lv, w in zip(leaves, written, strict=False) if isinstance(lv, str) and _BACKSLASH in lv]
+    if not pairs:
+        return ""
+    rewritten = sum(1 for lv, w in pairs if w != lv and w == _posix(lv))
+    return "posix" if rewritten * 2 >= len(pairs) else ""
 
 
 def json_type(values: list[Any]) -> str:
@@ -128,7 +159,8 @@ class Inference:
                 if not _same(leaf, values[0]):
                     continue
                 if all(_same(lookup(occ[j], path), v) for occ, v in zip(self.occurrence_results, values, strict=False)):
-                    return Ref(j, path)
+                    leaves = [lookup(occ[j], path) for occ in self.occurrence_results]
+                    return Ref(j, path, _fmt_for(leaves, values))
             if all(isinstance(occ[j], str) and _same(occ[j].strip(), v)
                    for occ, v in zip(self.occurrence_results, values, strict=False)):
                 return Ref(j, ())
@@ -157,12 +189,13 @@ class Inference:
         best: tuple[int, tuple, int] | None = None
         for j in range(step - 1, -1, -1):
             for path, leaf in _leaves(first[j]):
-                if not isinstance(leaf, str) or len(leaf) < 3 or leaf == values[0] or leaf not in values[0]:
+                if not isinstance(leaf, str) or len(leaf) < 3 or _same(leaf, values[0]) \
+                        or _posix(leaf) not in _posix(values[0]):
                     continue
                 ok = True
                 for occ, v in zip(self.occurrence_results, values, strict=False):
                     lv = lookup(occ[j], path)
-                    if not isinstance(lv, str) or lv not in v:
+                    if not isinstance(lv, str) or _posix(lv) not in _posix(v):
                         ok = False
                         break
                 if ok and (best is None or len(leaf) > best[2]):
@@ -170,16 +203,19 @@ class Inference:
         if best is None:
             return None
         j, path, _ = best
-        pres, posts = [], []
+        pres, posts, leaves, written = [], [], [], []
         for occ, v in zip(self.occurrence_results, values, strict=False):
             lv = lookup(occ[j], path)
-            i = v.index(lv)
+            i = _posix(v).index(_posix(lv))  # same length either way: one character per separator
             pres.append(v[:i])
             posts.append(v[i + len(lv):])
+            leaves.append(lv)
+            written.append(v[i:i + len(lv)])
+        fmt = _fmt_for(leaves, written)
         parts: list[Expr] = []
         for side in (pres, None, posts):
             if side is None:
-                parts.append(Ref(j, path))
+                parts.append(Ref(j, path, fmt))
             elif all(s == "" for s in side):
                 continue
             elif any(s == "" for s in side):
@@ -289,6 +325,8 @@ def render(expr: Expr, inputs: dict[str, Any], results: list[Any]) -> Any:
         value = root.strip() if expr.path == () and isinstance(root, str) else lookup(root, expr.path)
         if value is _MISSING:
             raise RenderError(f"step {expr.step + 1} result has no field {'.'.join(map(str, expr.path))}")
+        if expr.fmt == "posix" and isinstance(value, str):
+            value = _posix(value)
         return value
     if isinstance(expr, Concat):
         return "".join(_stringify(render(p, inputs, results)) for p in expr.parts)
@@ -343,7 +381,8 @@ def match(expr: Expr, value: Any, results: list[Any], bindings: dict[str, Any],
                 groups.append(p.name)
             else:
                 try:
-                    pattern += re.escape(_stringify(render(p, bindings, results)))
+                    piece = re.escape(_posix(_stringify(render(p, bindings, results))))
+                    pattern += piece.replace("/", "[/" + BS_CLASS + "]")
                 except RenderError:
                     return False
         m = re.fullmatch(pattern, value, flags=re.DOTALL)
