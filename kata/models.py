@@ -344,7 +344,7 @@ class ValidationReport:
 class StepTrace:
     index: int
     tool: str
-    status: str            # ok | error | timeout | skipped
+    status: str            # ok | error | timeout | skipped | blocked (riskier than approved; not run)
     duration_ms: int
     attempts: int
     error: str | None = None

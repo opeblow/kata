@@ -43,7 +43,7 @@ To see it with real data:
 
 ```bash
 python scripts/demo.py --db /tmp/kata-demo.db
-KATA_DB_PATH=/tmp/kata-demo.db python devtools/preview_server.py
+python devtools/preview_server.py --db /tmp/kata-demo.db
 ```
 
 Then open http://127.0.0.1:8765 (add `?theme=light` for the light theme). Visual changes need updated screenshots:

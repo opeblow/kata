@@ -1,7 +1,7 @@
 """Serve the real Kata dashboard bundle and API outside Hermes, for development and screenshots.
 
     python scripts/demo.py --db /tmp/kata-demo.db
-    KATA_DB_PATH=/tmp/kata-demo.db python devtools/preview_server.py   # http://127.0.0.1:8765
+    python devtools/preview_server.py --db /tmp/kata-demo.db   # http://127.0.0.1:8765
 
 The page provides a minimal ``window.__HERMES_PLUGIN_SDK__`` (React and fetchJSON), the
 same globals the Hermes dashboard gives plugins. The API is the plugin's own router.
@@ -19,12 +19,13 @@ from fastapi.responses import FileResponse, HTMLResponse
 ROOT = Path(__file__).resolve().parents[1]
 DASH = ROOT / "kata" / "dashboard"
 
-if not os.environ.get("KATA_DB_PATH"):
-    sys.exit("set KATA_DB_PATH to a Kata database (run scripts/demo.py --db PATH first)")
+if len(sys.argv) != 3 or sys.argv[1] != "--db":
+    sys.exit("usage: python devtools/preview_server.py --db PATH   (run scripts/demo.py --db PATH first)")
 
 spec = importlib.util.spec_from_file_location("kata_plugin_api", DASH / "plugin_api.py")
 api = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(api)
+api.use_store(sys.argv[2])
 
 app = FastAPI()
 app.include_router(api.router, prefix="/api/plugins/kata")

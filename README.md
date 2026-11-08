@@ -570,10 +570,10 @@ kata/
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pytest --cov=kata          # 48 tests, 89% coverage
+python -m pytest --cov=kata          # 61 tests, 89% coverage
 ruff check .
 python scripts/demo.py --db /tmp/kata-demo.db
-KATA_DB_PATH=/tmp/kata-demo.db python devtools/preview_server.py   # dashboard at http://127.0.0.1:8765
+python devtools/preview_server.py --db /tmp/kata-demo.db   # dashboard at http://127.0.0.1:8765
 hermes plugins validate ./kata       # Hermes's own catalog checks
 hermes plugins doctor ./kata --ci
 ```

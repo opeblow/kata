@@ -14,8 +14,9 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from .effects import classify
 from .models import Effect, KataSpec, RunResult, StepTrace
-from .templating import RenderError, parse_result, render
+from .templating import RenderError, parse_result, render_step
 
 Dispatch = Callable[[str, dict], str]
 
@@ -108,13 +109,20 @@ class Executor:
 
         for i, step in enumerate(spec.steps):
             try:
-                args = render(step.args, inputs, results)
+                args = render_step(step.tool, step.args, inputs, results)
             except RenderError as e:
                 traces.append(StepTrace(i, step.tool, "error", 0, 0, error=f"could not build arguments: {e}"))
                 return done(False, failed=i, error=f"step {i + 1} ({step.tool}): {e}")
             if not isinstance(args, dict):
                 traces.append(StepTrace(i, step.tool, "error", 0, 0, error="arguments did not render to an object"))
                 return done(False, failed=i, error=f"step {i + 1} ({step.tool}): bad arguments")
+            # The approval covered this step's effect as mined. Re-check the real arguments, which
+            # carry model input and earlier results, and refuse anything riskier than approved.
+            effect, why = classify(step.tool, args)
+            if effect.rank > step.effect.rank:
+                msg = f"arguments are {effect.value}, but this step was approved as {step.effect.value} ({why})"
+                traces.append(StepTrace(i, step.tool, "blocked", 0, 0, error=msg))
+                return done(False, failed=i, error=f"step {i + 1} ({step.tool}): {msg}")
 
             attempts_allowed = 1 + (self.read_retries if step.effect is Effect.READ else 0)
             attempt, failure, status = 0, None, "ok"

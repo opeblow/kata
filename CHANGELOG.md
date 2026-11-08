@@ -4,6 +4,24 @@ All notable changes to Kata are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Security
+
+- A step's arguments are classified again after rendering, just before dispatch. A step whose real arguments are
+  riskier than the effect it was approved with is blocked and never sent or retried.
+- Values spliced into a terminal command (kata inputs and earlier steps' results) are shell-quoted outside quotes and
+  refused inside quotes when they could close or escape them. Values that would start a new word with `-` are
+  refused, and the program name must be fixed text.
+- The command classifier treats newlines and NUL as compound commands, so `git log x` followed by a second line is no
+  longer read-only.
+
+### Changed
+
+- The database always lives in Hermes's plugin storage. The `KATA_DB_PATH` override and the `~/.hermes` fallback are
+  gone; tests and dev tools pass a store explicitly (`install(ctx, store)`, or `use_store(path)` in the dashboard API),
+  and the dashboard preview takes `--db PATH`.
+
 ## [0.1.0] - 2026-11-07
 
 First public release, submitted to the Hermes Agent Plugin Hackathon.

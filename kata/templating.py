@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -339,6 +340,72 @@ def render(expr: Expr, inputs: dict[str, Any], results: list[Any]) -> Any:
     if isinstance(expr, Arr):
         return [render(v, inputs, results) for v in expr.items]
     raise RenderError(f"unknown expression {expr!r}")
+
+
+_UNSAFE_IN_SINGLE = frozenset("'\n\r\0")
+_UNSAFE_IN_DOUBLE = frozenset('"$`\\!\n\r\0')
+
+
+def _advance_quotes(text: str, state: str | None) -> str | None:
+    """Shell quote state (None, "'" or '"') after reading ``text`` from ``state``."""
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if state is None:
+            if c == "\\":
+                i += 1
+            elif c in "'\"":
+                state = c
+        elif state == "'":
+            if c == "'":
+                state = None
+        else:
+            if c == "\\":
+                i += 1
+            elif c == '"':
+                state = None
+        i += 1
+    return state
+
+
+def render_command(expr: Expr, inputs: dict[str, Any], results: list[Any]) -> str:
+    """Render a shell command so spliced values stay data, never shell syntax.
+
+    Constant text was approved as written. Every parameter or earlier result spliced into it
+    is shell-quoted when it sits outside quotes, and refused when it sits inside quotes and
+    contains a character that could end or escape them. Values that would start a new word
+    with ``-`` are refused too, so an input cannot turn into an option. The program itself
+    must be constant text.
+    """
+    parts = expr.parts if isinstance(expr, Concat) else (expr,)
+    out, state = "", None
+    for p in parts:
+        if isinstance(p, Const):
+            text = _stringify(p.value)
+            out += text
+            state = _advance_quotes(text, state)
+            continue
+        if not out.strip():
+            raise RenderError("the command's program is not fixed text")
+        value = _stringify(render(p, inputs, results))
+        word_start = out.rstrip("'\"") == "" or out.rstrip("'\"")[-1].isspace()
+        if word_start and value.startswith("-"):
+            raise RenderError(f"value {value[:40]!r} would be read as an option")
+        if state is None:
+            out += shlex.quote(value)
+        elif set(value) & (_UNSAFE_IN_SINGLE if state == "'" else _UNSAFE_IN_DOUBLE):
+            raise RenderError(f"value {value[:40]!r} contains characters that would break out of its quotes")
+        else:
+            out += value
+    return out
+
+
+def render_step(tool: str, expr: Expr, inputs: dict[str, Any], results: list[Any]) -> Any:
+    """Render one step's arguments, quoting values spliced into a terminal command."""
+    if tool == "terminal" and isinstance(expr, Obj):
+        return {k: render_command(v, inputs, results) if k == "command" else render(v, inputs, results)
+                for k, v in expr.fields}
+    return render(expr, inputs, results)
 
 
 def _stringify(v: Any) -> str:

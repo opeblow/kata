@@ -57,14 +57,14 @@ _GIT_LOCAL_WRITE = {"add", "commit", "checkout", "switch", "stash", "restore", "
                     "fetch", "pull", "init"}
 _CHECKERS = {"pytest", "ruff", "mypy", "tsc", "eslint", "prettier", "black", "flake8"}
 _CHECKER_WRITE_FLAGS = {"--fix", "-w", "--write", "--in-place"}
-_SHELL_META = re.compile(r"[;&|`$<>]")
+_SHELL_META = re.compile(r"[;&|`$<>\n\r\0]")
 
 
 def _classify_command(command: str) -> tuple[Effect, str]:
     if not command.strip():
         return Effect.UNKNOWN, "empty command"
     if _SHELL_META.search(command):
-        return Effect.UNKNOWN, "compound shell command (pipes, redirects or substitution)"
+        return Effect.UNKNOWN, "compound shell command (pipes, redirects, substitution or several lines)"
     try:
         argv = shlex.split(command)
     except ValueError:

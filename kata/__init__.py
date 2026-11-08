@@ -7,7 +7,6 @@ registered until you review and approve it.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 __version__ = "0.1.0"
@@ -16,17 +15,16 @@ log = logging.getLogger("kata")
 
 
 def open_store():
-    """Open the plugin database in Hermes's per-profile plugin data directory."""
-    import os
+    """Open the plugin database in Hermes's per-profile plugin data directory.
 
+    Tests and dev tools pass their own store to ``install`` (or ``use_store`` in the dashboard API).
+    """
     from .store import Store
-    override = os.environ.get("KATA_DB_PATH")  # development and the offline demo only
-    if override:
-        return Store.open_path(Path(override))
     try:
         from plugins.plugin_storage import plugin_db
-    except ImportError:  # running outside Hermes (tests, scripts)
-        return Store.open_path(Path.home() / ".hermes" / "plugin-data" / "kata" / "kata.db")
+    except ImportError as e:
+        raise RuntimeError("Kata's database lives in Hermes's plugin storage; outside Hermes, "
+                           "pass a Store explicitly") from e
     # Opened on first use, so loading the plugin never creates or locks files.
     return Store.lazy(lambda: plugin_db("kata", "kata.db"))
 

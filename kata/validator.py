@@ -16,7 +16,7 @@ from .executor import Executor, validate_inputs
 from .miner import fits
 from .models import TOOLS_NOT_LOADED, CheckResult, Effect, KataSpec, ToolEvent, ValidationReport
 from .redact import REDACTED, looks_secret
-from .templating import RenderError, normalized, parse_result, render
+from .templating import RenderError, normalized, parse_result, render_step
 
 
 class _Replay:
@@ -83,7 +83,7 @@ def validate(spec: KataSpec, examples: list[list[ToolEvent]], *,
         results = []
         for i, (expr, ev) in enumerate(zip(exprs, ex, strict=False)):
             try:
-                rendered = render(expr, bindings, results)
+                rendered = render_step(spec.steps[i].tool, expr, bindings, results)
             except RenderError as e:
                 mismatches.append(f"example {n + 1} step {i + 1}: {e}")
                 break

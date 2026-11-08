@@ -16,12 +16,12 @@ API = Path(__file__).resolve().parents[1] / "kata" / "dashboard" / "plugin_api.p
 
 
 def _client(db: Path, monkeypatch) -> TestClient:
-    monkeypatch.setenv("KATA_DB_PATH", str(db))
     for name in [m for m in sys.modules if m.startswith("kata_dashboard_core")]:
-        del sys.modules[name]
+        monkeypatch.delitem(sys.modules, name)
     spec = importlib.util.spec_from_file_location("kata_api_under_test", API)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    mod.use_store(db)
     app = FastAPI()
     app.include_router(mod.router, prefix="/api/plugins/kata")
     return TestClient(app)

@@ -44,6 +44,15 @@ def _svc():
     return _service
 
 
+def use_store(path: str | Path) -> None:
+    """Serve a specific database instead of Hermes's plugin storage. Tests and dev tools only."""
+    global _service
+    _core()
+    store_mod = importlib.import_module(f"{_PKG}.store")
+    service_mod = importlib.import_module(f"{_PKG}.service")
+    _service = service_mod.KataService(store_mod.Store.open_path(Path(path)))
+
+
 async def _run(fn, *a, **k) -> Any:
     try:
         return await asyncio.to_thread(fn, *a, **k)
